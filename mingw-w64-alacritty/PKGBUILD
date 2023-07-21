@@ -59,4 +59,11 @@ package() {
   cd "${srcdir}/build-${MSYSTEM}"
 
   install -Dm755 "target/release/${_realname}.exe" "${pkgdir}${MINGW_PREFIX}/bin/${_realname}.exe"
+  install -Dm644 "extra/alacritty.man" "${pkgdir}${MINGW_PREFIX}/share/man/man1/alacritty.1"
+  install -Dm644 "extra/alacritty-msg.man" "${pkgdir}${MINGW_PREFIX}/share/man/man1/alacritty-msg.1"
+  install -Dm644 "alacritty.yml" "${pkgdir}${MINGW_PREFIX}/share/doc/alacritty/example/alacritty.yml"
+  install -Dm644 "extra/completions/alacritty.bash" "${pkgdir}${MINGW_PREFIX}/share/bash-completion/completions/alacritty"
+  install -Dm644 "extra/completions/_alacritty" "${pkgdir}${MINGW_PREFIX}/share/zsh/site-functions/_alacritty"
+  install -Dm644 "extra/completions/alacritty.fish" "${pkgdir}${MINGW_PREFIX}/share/fish/vendor_completions.d/alacritty.fish"
+  install -Dm644 "extra/logo/alacritty-term.svg" "${pkgdir}${MINGW_PREFIX}/share/pixmaps/Alacritty.svg"
 }
