@@ -33,7 +33,7 @@ prepare() {
 build() {
     cd "${srcdir}"
     rm -rf "build-${MSYSTEM}" | true
-    cp -r "${_realName}-${pkgver}" "build-${MSYSTEM}"
+    cp -r "${_realname}" "build-${MSYSTEM}"
     cd "build-${MSYSTEM}"
 
     WINAPI_NO_BUNDLED_LIBRARIES=1 \
