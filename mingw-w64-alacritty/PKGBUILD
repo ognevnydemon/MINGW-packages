@@ -25,7 +25,7 @@ validpgpkeys=('4DAA67A9EA8B91FCC15B699C85CDAE3C164BA7B4'  # Christian Dürr <con
 sha256sums=('SKIP')
 
 prepare() {
-    cd "${srcdir}/${_realname}-${pkgver}"
+    cd "${srcdir}/${_realname}"
 
     cargo fetch --locked
 }
