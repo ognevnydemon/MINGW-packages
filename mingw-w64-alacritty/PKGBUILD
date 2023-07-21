@@ -18,6 +18,7 @@ makedepends=("${MINGW_PACKAGE_PREFIX}-rust"
              'git')
 depends=("${MINGW_PACKAGE_PREFIX}-freetype"
          "${MINGW_PACKAGE_PREFIX}-fontconfig")
+checkdepends=("${MINGW_PACKAGE_PREFIX}-ttf-dejavu")
 optdepends=("${MINGW_PACKAGE_PREFIX}-ncurses: for alacritty terminfo database")
 source=("git+${url}.git#tag=v${pkgver}?signed")
 validpgpkeys=('4DAA67A9EA8B91FCC15B699C85CDAE3C164BA7B4'  # Christian Dürr <contact@christianduerr.com>
@@ -25,29 +26,37 @@ validpgpkeys=('4DAA67A9EA8B91FCC15B699C85CDAE3C164BA7B4'  # Christian Dürr <con
 sha256sums=('SKIP')
 
 prepare() {
-    cd "${srcdir}/${_realname}"
+  cd "${srcdir}/${_realname}"
 
-    if [[ $MINGW_PACKAGE_PREFIX == *-clang-aarch64 ]]; then
-        cargo fetch --locked --target aarch64-pc-windows-gnullvm
-    else
-        cargo fetch --locked --target "${CARCH}-pc-windows-gnu"
-    fi
+  if [[ $MINGW_PACKAGE_PREFIX == *-clang-aarch64 ]]; then
+    cargo fetch --locked --target aarch64-pc-windows-gnullvm
+  else
+    cargo fetch --locked --target "${CARCH}-pc-windows-gnu"
+  fi
 }
 
 build() {
-    cd "${srcdir}"
-    rm -rf "build-${MSYSTEM}" | true
-    cp -r "${_realname}" "build-${MSYSTEM}"
-    cd "build-${MSYSTEM}"
+  cd "${srcdir}"
+  rm -rf "build-${MSYSTEM}" | true
+  cp -r "${_realname}" "build-${MSYSTEM}"
+  cd "build-${MSYSTEM}"
 
-    WINAPI_NO_BUNDLED_LIBRARIES=1 \
-        "${MINGW_PREFIX}/bin/cargo.exe" build \
-        --release \
-        --locked
+  WINAPI_NO_BUNDLED_LIBRARIES=1 \
+    "${MINGW_PREFIX}/bin/cargo.exe" build \
+    --release \
+    --locked
+}
+
+check() {
+  cd "${srcdir}/build-${MSYSTEM}"
+
+  "${MINGW_PACKAGE_PREFIX}/bin/cargo.exe" test \
+    --release \
+    --locked
 }
 
 package() {
-    cd "${srcdir}/build-${MSYSTEM}"
+  cd "${srcdir}/build-${MSYSTEM}"
 
-    install -Dm755 "target/release/${_realname}.exe" "${pkgdir}${MINGW_PREFIX}/bin/${_realname}.exe"
+  install -Dm755 "target/release/${_realname}.exe" "${pkgdir}${MINGW_PREFIX}/bin/${_realname}.exe"
 }
