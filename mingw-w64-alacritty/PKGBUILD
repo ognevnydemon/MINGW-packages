@@ -1,0 +1,49 @@
+# Contributor: Maksim Bondarenkov <maksapple2306@gmail.com>
+
+_realname=alacritty
+pkgbase=mingw-w64-${realname}
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+pkgver=0.12.2
+pkgrel=1
+pkgdesc="A cross-platform, OpenGL terminal emulator (mingw-w64)"
+arch=('x86_64')
+mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang32' 'clang64')
+url="https://github.com/alacritty/alacritty"
+license=('spdx:Apache-2.0 OR MIT')
+makedepends=("${MINGW_PACKAGE_PREFIX}-rust"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ncurses"
+             "${MINGW_PACKAGE_PREFIX}-desktop-file-utils"
+             "${MINGW_PACKAGE_PREFIX}-gdb")
+depends=("${MINGW_PACKAGE_PREFIX}-freetype"
+         "${MINGW_PACKAGE_PREFIX}-fontconfig")
+optdepends=("${MINGW_PACKAGE_PREFIX}-ncurses: for alacritty terminfo database")
+source=("${_realname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz")
+validpgpkeys=('4DAA67A9EA8B91FCC15B699C85CDAE3C164BA7B4'  # Christian Dürr <contact@christianduerr.com>
+              'A56EF308A9F1256C25ACA3807EA8F8B94622A6A9') # Kirill Chibisov <contact@kchibisov.com>
+sha256sums=('SKIP')
+
+prepare() {
+    cd "${srcdir}/${_realname}-${pkgver}"
+
+    cargo fetch --locked
+}
+
+build() {
+    cd "${srcdir}"
+    rm -rf "build-${MSYSTEM}" | true
+    cp -r "${_realName}-${pkgver}" "build-${MSYSTEM}"
+    cd "build-${MSYSTEM}"
+
+    WINAPI_NO_BUNDLED_LIBRARIES=1 \
+        "${MINGW_PREFIX}/bin/cargo.exe" build \
+        --release \
+        --locked
+}
+
+package() {
+    cd "${srcdir}/build-${MSYSTEM}"
+
+    install -Dm755 "target/release/${_realname}.exe" "${pkgdir}${MINGW_PREFIX}/bin/${_realname}.exe"
+    install -Dm644 "LICENSE" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
+}
