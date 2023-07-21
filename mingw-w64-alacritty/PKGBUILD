@@ -1,4 +1,4 @@
-# Contributor: Maksim Bondarenkov <maksapple2306@gmail.com>
+# Maintainer: Maksim Bondarenkov <maksapple2306@gmail.com>
 
 _realname=alacritty
 pkgbase=mingw-w64-${realname}
@@ -6,8 +6,8 @@ pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
 pkgver=0.12.2
 pkgrel=1
 pkgdesc="A cross-platform, OpenGL terminal emulator (mingw-w64)"
-arch=('i686' 'x86_64')
-mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang32' 'clang64')
+arch=('any')
+mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang32' 'clang64' 'clangarm64')
 url="https://github.com/alacritty/alacritty"
 license=('spdx:Apache-2.0 OR MIT')
 makedepends=("${MINGW_PACKAGE_PREFIX}-rust"
@@ -27,7 +27,11 @@ sha256sums=('SKIP')
 prepare() {
     cd "${srcdir}/${_realname}"
 
-    cargo fetch --locked
+    if [[ $MINGW_PACKAGE_PREFIX == *-clang-aarch64 ]]; then
+        cargo fetch --locked --target aarch64-pc-windows-gnullvm
+    else
+        cargo fetch --locked --target "${CARCH}-pc-windows-gnu"
+    fi
 }
 
 build() {
