@@ -1,4 +1,5 @@
 # Maintainer: Naveen M K <naveen521kk@gmail.com>
+# Contributor Maksim Bondarenkov <maksapple2306@gmail.com>
 
 _realname=starship
 pkgbase=mingw-w64-${_realname}
@@ -12,39 +13,46 @@ url="https://starship.rs"
 license=('spdx:ISC')
 depends=("${MINGW_PACKAGE_PREFIX}-libgit2")
 makedepends=("${MINGW_PACKAGE_PREFIX}-rust"
-             "${MINGW_PACKAGE_PREFIX}-cmake")
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             'git')
 options=('staticlibs' 'strip')
-source=("${_realname}-${pkgver}.tar.gz::https://github.com/starship/starship/archive/refs/tags/v${pkgver}.tar.gz")
-sha256sums=('e525476cf93d3a06332abf9e02415d4789fac6f28e4b7d98db7d83da08231828')
-noextract=("${_realname}-${pkgver}.tar.gz")
+source=("git+${url}.git#tag=v${pkgver}?signed")
+sha256sums=('SKIP')
 
 prepare() {
-  tar -xzf "${srcdir}"/${_realname}-${pkgver}.tar.gz -C ${srcdir} || true
-  cp -r ${_realname}-${pkgver} build-${MSYSTEM}
-  ${MINGW_PREFIX}/bin/cargo fetch \
-  --locked \
-  --manifest-path build-${MSYSTEM}/Cargo.toml
+  cd "${srcdir}/${_realname}"
+
+  if [[ $MINGW_PACKAGE_PREFIX == *-clang-aarch64 ]]; then
+    "${MINGW_PREFIX}/bin/cargo.exe" fetch --locked --target aarch64-pc-windows-gnullvm
+  else
+    "${MINGW_PREFIX}/bin/cargo.exe" fetch --locked --target "${CARCH}-pc-windows-gnu"
+  fi
 }
 
 build() {
+  cd "${srcdir}"
+  rm -rf "build-${MSYSTEM}" | true
+  cp -r ${_realname} "build-${MSYSTEM}"
+  cd "build-${MSYSTEM}"
+
   WINAPI_NO_BUNDLED_LIBRARIES=1 \
-    ${MINGW_PREFIX}/bin/cargo build \
+    "${MINGW_PREFIX}/bin/cargo.exe" build \
     --release \
     --frozen \
-    --manifest-path build-${MSYSTEM}/Cargo.toml
+    --manifest-path "build-${MSYSTEM}/Cargo.toml"
 }
 
 package() {
-  ${MINGW_PREFIX}/bin/cargo install \
-  --frozen \
-  --offline \
-  --no-track \
-  --path build-${MSYSTEM} \
-  --root ${pkgdir}${MINGW_PREFIX}
+  "${MINGW_PREFIX}/bin/cargo.exe" install \
+    --frozen \
+    --offline \
+    --no-track \
+    --path "build-${MSYSTEM}" \
+    --root "${pkgdir}${MINGW_PREFIX}"
 
-  install -Dm 644 build-${MSYSTEM}/LICENSE -t "${pkgdir}${MINGW_PREFIX}"/share/licenses/starship/
+  install -Dm 644 "build-${MSYSTEM}/LICENSE" -t "${pkgdir}${MINGW_PREFIX}"/share/licenses/starship/
   install -dm 755 "${pkgdir}${MINGW_PREFIX}"/share/{bash-completion/completions,fish/vendor_completions.d,zsh/site-functions}/
-  ./build-${MSYSTEM}/target/release/starship completions bash >"${pkgdir}${MINGW_PREFIX}"/share/bash-completion/completions/starship
-  ./build-${MSYSTEM}/target/release/starship completions fish >"${pkgdir}${MINGW_PREFIX}"/share/fish/vendor_completions.d/starship.fish
-  ./build-${MSYSTEM}/target/release/starship completions zsh >"${pkgdir}${MINGW_PREFIX}"/share/zsh/site-functions/_starship
+  "./build-${MSYSTEM}/target/release/starship" completions bash >"${pkgdir}${MINGW_PREFIX}"/share/bash-completion/completions/starship
+  "./build-${MSYSTEM}/target/release/starship" completions fish >"${pkgdir}${MINGW_PREFIX}"/share/fish/vendor_completions.d/starship.fish
+  "./build-${MSYSTEM}/target/release/starship" completions zsh >"${pkgdir}${MINGW_PREFIX}"/share/zsh/site-functions/_starship
 }
