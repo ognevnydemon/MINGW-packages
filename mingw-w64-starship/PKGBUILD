@@ -10,13 +10,14 @@ pkgdesc="The cross-shell prompt for astronauts (mingw-w64)"
 arch=('any')
 mingw_arch=('mingw32' 'mingw64' 'ucrt64' 'clang64' 'clangarm64' 'clang32')
 url="https://starship.rs"
+_urlgit=https://github.com/starship/starship
 license=('spdx:ISC')
 depends=("${MINGW_PACKAGE_PREFIX}-libgit2")
 makedepends=("${MINGW_PACKAGE_PREFIX}-rust"
              "${MINGW_PACKAGE_PREFIX}-cmake"
              'git')
 options=('staticlibs' 'strip')
-source=("git+${url}.git#tag=v${pkgver}?signed")
+source=("git+${_urlgit}.git#tag=v${pkgver}?signed")
 sha256sums=('SKIP')
 
 prepare() {
