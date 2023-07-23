@@ -21,9 +21,17 @@ noextract=("${_realname}-${pkgver}.tar.gz")
 prepare() {
   tar -xzf "${srcdir}"/${_realname}-${pkgver}.tar.gz -C ${srcdir} || true
   cp -r ${_realname}-${pkgver} build-${MSYSTEM}
-  ${MINGW_PREFIX}/bin/cargo fetch \
-  --locked \
-  --manifest-path build-${MSYSTEM}/Cargo.toml
+  if [[ $MINGW_PACKAGE_PREFIX == *-clang-aarch64 ]]; then
+    ${MINGW_PREFIX}/bin/cargo fetch \
+      --locked \
+      --manifest-path build-${MSYSTEM}/Cargo.toml \
+      --target aarch64-pc-windows-gnullvm
+  else
+    ${MINGW_PREFIX}/bin/cargo fetch \
+      --locked \
+      --manifest-path build-${MSYSTEM}/Cargo.toml \
+      --target "${CARCH}-pc-windows-gnu"
+  fi
 }
 
 build() {
