@@ -5,8 +5,8 @@
 _realname=nim
 pkgbase=mingw-w64-${_realname}
 pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
-pkgver=1.6.12
-_csourcesver=561b417c65791cd8356b5f73620914ceff845d10
+pkgver=2.0.4
+_csourcesver=86742fb02c6606ab01a532a0085784effb2e753e
 pkgrel=1
 pkgdesc='Imperative, multi-paradigm, compiled programming language (mingw-w64)'
 arch=('any')
@@ -19,53 +19,68 @@ msys2_references=(
 license=('MIT')
 makedepends=('git' "${MINGW_PACKAGE_PREFIX}-cc")
 options=(!emptydirs)
-source=("${_realname}-${pkgver}.tar.gz"::https://github.com/nim-lang/Nim/archive/v${pkgver}.tar.gz
-        "git+https://github.com/nim-lang/csources_v1.git#commit=${_csourcesver}"
+source=("https://github.com/nim-lang/Nim/archive/v${pkgver}/${_realname}-${pkgver}.tar.gz"
+        "git+https://github.com/nim-lang/csources_v2.git#commit=${_csourcesver}"
         "0001-Use-unixy-filenames-even-on-Windows.patch"
         "0002-Fix-config-path.patch"
         "0003-Fix-library-path.patch"
         "0004-Fix-nimrtl-dll-name.patch"
         "0005-Fix-pcre-dll-name.patch"
-        "0006-Fix-sqlite3-dll-name.patch"
         "0007-Fix-openssl-dll-name.patch")
-sha256sums=('0ce3f0aa9bbf91ecba0ccd812e62294f83eb37c985c466c57ae25c04aedd330b'
+sha256sums=('482983608bacc712d86d1c0e6f187cc17c63df6006cfc1b639cd625240d7f65c'
             'SKIP'
             '3010acbe7769ea214dd51f5889e3a26b44925001905deb04b060beaede2578f4'
             'e4616080589f8140dbf4e4dc8afff1dddd95c93af51e2754bd84606cee415386'
-            '214e5835c9220b2f2951c9b1d62a1ab44f73e4d0f6dbabf3b284405ddac2c78f'
+            'e9058ca36400b4af146ea9f3619b635de8cf445510ec59a1f293b3acf1159217'
             '35a60e8c4ccff04ac9adb4b7d13c6e1e72b96dac9361173e4a44b1662107eea3'
             'fa475808c100a86174ae348faaa4048d09e56406cb54c2f795da9d733605b003'
-            '008a090cf561124796daaab8390f495bc740a4ec8936eb96bc025cee6e017e3d'
             '371a3133fd00d748199364ce2c6a2c23e0105c20fa236b46c2d7f61f2ffd7442')
 
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying ${_patch}"
+    patch -Nbp1 -i "${srcdir}/${_patch}"
+  done
+}
+
 prepare() {
-  cd "${srcdir}"
-
   cd "${_realname}-${pkgver}"
-  cp -r ../csources_v1/* .
+  cp -r ../csources_v2/* .
+  rm bin/empty.txt
 
-  patch -p1 -i "${srcdir}/0001-Use-unixy-filenames-even-on-Windows.patch"
-  patch -p1 -i "${srcdir}/0002-Fix-config-path.patch"
-  patch -p1 -i "${srcdir}/0003-Fix-library-path.patch"
-  patch -p1 -i "${srcdir}/0004-Fix-nimrtl-dll-name.patch"
-  patch -p1 -i "${srcdir}/0005-Fix-pcre-dll-name.patch"
-  patch -p1 -i "${srcdir}/0006-Fix-sqlite3-dll-name.patch"
-  patch -b -p1 -i "${srcdir}/0007-Fix-openssl-dll-name.patch"
+  apply_patch_with_msg \
+    0001-Use-unixy-filenames-even-on-Windows.patch \
+    0002-Fix-config-path.patch \
+    0003-Fix-library-path.patch \
+    0004-Fix-nimrtl-dll-name.patch \
+    0005-Fix-pcre-dll-name.patch \
+    0007-Fix-openssl-dll-name.patch
 
   if [[ ${MSYSTEM} == CLANG* ]]; then
-    echo "cc = clang" >> "config/nim.cfg" 
+    echo "cc = clang" >> "config/nim.cfg"
+    for nimcfg in {compiler,config}/nim.cfg; do
+      echo "clang.options.always %= \"\${clang.options.always} ${CFLAGS:-} ${CPPFLAGS}\"" >> "${nimcfg}"
+      echo "clang.options.linker %= \"\${clang.options.linker} ${LDFLAGS:-}\"" >> "${nimcfg}"
+    done
+  else
+    for nimcfg in {compiler,config}/nim.cfg; do
+      echo "gcc.options.always %= \"\${gcc.options.always} ${CFLAGS:-} ${CPPFLAGS}\"" >> "${nimcfg}"
+      echo "gcc.options.linker %= \"\${gcc.options.linker} ${LDFLAGS:-}\"" >> "${nimcfg}"
+    done
   fi
 }
 
 build() {
   cd "${srcdir}/${_realname}-${pkgver}"
+  export PATH="${srcdir}/${_realname}-${pkgver}/bin:${PATH}"
 
   msg2 "Building nim"
-  sh build.sh --cpu ${MINGW_CHOST}
+  sh build.sh --cpu "${MINGW_CHOST}"
 
   msg2 "Building koch"
-  ./bin/nim c -d:release koch
-  ./koch boot -d:release -d:useGnuReadline
+  nim c -d:release koch
+  ./koch boot -d:release -d:nativeStacktrace -d:useGnuReadline
 
   export PATH="${srcdir}/${_realname}-${pkgver}/bin:$PATH"
 
@@ -75,6 +90,7 @@ build() {
   popd
 
   msg2 "Building tools"
+  ./koch tools
   pushd tools
   nim c -d:release nimgrep.nim
   popd
@@ -113,8 +129,8 @@ package() {
   cp "copying.txt" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/LICENSE"
 
   # clean up after koch install
-  rm -r "${pkgdir}/nim"
-  rm -f ${pkgdir}${MINGW_PREFIX}/bin/*.txt
-  rm -r ${pkgdir}${MINGW_PREFIX}/lib/nim/*.dll
-  rm -r ${pkgdir}${MINGW_PREFIX}/lib/nim/compiler/*.exe
+  # rm -r "${pkgdir}/nim"
+  # rm -f ${pkgdir}${MINGW_PREFIX}/bin/*.txt
+  # rm -r ${pkgdir}${MINGW_PREFIX}/lib/nim/*.dll
+  # rm -r ${pkgdir}${MINGW_PREFIX}/lib/nim/compiler/*.exe
 }
