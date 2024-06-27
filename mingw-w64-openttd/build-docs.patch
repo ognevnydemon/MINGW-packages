@@ -1,0 +1,13 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 9e5b66987..aafadb1e9 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -61,7 +61,7 @@ if(APPLE OR UNIX)
+     add_definitions(-DUNIX)
+ endif()
+ 
+-if(UNIX)
++if(UNIX OR MINGW)
+     find_package(Doxygen)
+ endif()
+ 

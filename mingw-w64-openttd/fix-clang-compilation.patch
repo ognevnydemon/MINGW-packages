@@ -1,0 +1,2584 @@
+From e3e6de448dbcfd8bec21e63c48427e4babd4d7df Mon Sep 17 00:00:00 2001
+From: Peter Nelson <peter1138@openttd.org>
+Date: Mon, 20 May 2024 08:26:17 +0100
+Subject: [PATCH 1/3] Codechange: Move filesystem include to stdafx.
+
+---
+ src/fileio.cpp                  | 1 -
+ src/fios.cpp                    | 1 -
+ src/ini.cpp                     | 2 --
+ src/language.h                  | 1 -
+ src/settingsgen/settingsgen.cpp | 2 --
+ src/stdafx.h                    | 1 +
+ src/strgen/strgen.cpp           | 1 -
+ 7 files changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/src/fileio.cpp b/src/fileio.cpp
+index 48c6c26db9436..0f4d499594663 100644
+--- a/src/fileio.cpp
++++ b/src/fileio.cpp
+@@ -26,7 +26,6 @@
+ #include <charconv>
+ #include <sys/stat.h>
+ #include <sstream>
+-#include <filesystem>
+ 
+ #include "safeguards.h"
+ 
+diff --git a/src/fios.cpp b/src/fios.cpp
+index 5bb7a2d2d1bd6..ed5475c56d51a 100644
+--- a/src/fios.cpp
++++ b/src/fios.cpp
+@@ -21,7 +21,6 @@
+ #include "tar_type.h"
+ #include <sys/stat.h>
+ #include <charconv>
+-#include <filesystem>
+ 
+ #include "table/strings.h"
+ 
+diff --git a/src/ini.cpp b/src/ini.cpp
+index 95d7cb8d38058..bef9b6a41c7d9 100644
+--- a/src/ini.cpp
++++ b/src/ini.cpp
+@@ -22,8 +22,6 @@
+ # include <fcntl.h>
+ #endif
+ 
+-#include <filesystem>
+-
+ #include "safeguards.h"
+ 
+ /**
+diff --git a/src/language.h b/src/language.h
+index c67df2bda1ec1..f5bec295883b0 100644
+--- a/src/language.h
++++ b/src/language.h
+@@ -14,7 +14,6 @@
+ #include <unicode/coll.h>
+ #endif /* WITH_ICU_I18N */
+ #include "strings_type.h"
+-#include <filesystem>
+ 
+ static const uint8_t CASE_GENDER_LEN = 16; ///< The (maximum) length of a case/gender string.
+ static const uint8_t MAX_NUM_GENDERS =  8; ///< Maximum number of supported genders.
+diff --git a/src/settingsgen/settingsgen.cpp b/src/settingsgen/settingsgen.cpp
+index e2b0362b90771..c7825666712c1 100644
+--- a/src/settingsgen/settingsgen.cpp
++++ b/src/settingsgen/settingsgen.cpp
+@@ -15,8 +15,6 @@
+ #include "../core/mem_func.hpp"
+ #include "../error_func.h"
+ 
+-#include <filesystem>
+-
+ #include "../safeguards.h"
+ 
+ /**
+diff --git a/src/stdafx.h b/src/stdafx.h
+index 3081beafe5a0a..8b9ae080c95cb 100644
+--- a/src/stdafx.h
++++ b/src/stdafx.h
+@@ -59,6 +59,7 @@
+ #include <cwchar>
+ #include <deque>
+ #include <exception>
++#include <filesystem>
+ #include <functional>
+ #include <iterator>
+ #include <list>
+diff --git a/src/strgen/strgen.cpp b/src/strgen/strgen.cpp
+index 63f5c02b4d704..8889a5e368e11 100644
+--- a/src/strgen/strgen.cpp
++++ b/src/strgen/strgen.cpp
+@@ -19,7 +19,6 @@
+ 
+ #include "strgen.h"
+ 
+-#include <filesystem>
+ #include <fstream>
+ 
+ #include "../table/strgen_tables.h"
+
+From 10e4a5d2cd61a3cce0d510f9841a7c7290ec07a9 Mon Sep 17 00:00:00 2001
+From: Peter Nelson <peter1138@openttd.org>
+Date: Sat, 9 Mar 2024 14:20:51 +0000
+Subject: [PATCH 2/3] Codechange: Replace all FILE * with FileHandle RAII
+ class.
+
+This removes the need to manually ensure all files are closed.
+---
+ src/bmp.cpp                       |   9 +--
+ src/bmp.h                         |   5 +-
+ src/console.cpp                   |  16 ++--
+ src/console_cmds.cpp              |  16 ++--
+ src/crashlog.cpp                  |   7 +-
+ src/debug.cpp                     |  16 ++--
+ src/dedicated.cpp                 |  12 +--
+ src/driver.cpp                    |   3 +-
+ src/fileio.cpp                    | 124 +++++++++++++++++-------------
+ src/fileio_func.h                 |  23 +-----
+ src/fileio_type.h                 |  27 +++++++
+ src/fios.cpp                      |  20 ++---
+ src/game/game_text.cpp            |   8 +-
+ src/gfxinit.cpp                   |  17 ++--
+ src/heightmap.cpp                 |  33 +++-----
+ src/highscore.cpp                 |  26 ++++---
+ src/ini.cpp                       |   2 +-
+ src/ini_load.cpp                  |   9 +--
+ src/ini_type.h                    |   6 +-
+ src/music/dmusic.cpp              |  39 +++++-----
+ src/music/midifile.cpp            |  45 +++++------
+ src/music/midifile.hpp            |   3 +-
+ src/network/network.cpp           |  13 ++--
+ src/network/network_content.cpp   |  43 +++++------
+ src/network/network_content.h     |   2 +-
+ src/newgrf_config.cpp             |  18 ++---
+ src/newgrf_config.h               |   2 +-
+ src/newgrf_profiling.cpp          |  17 ++--
+ src/pathfinder/yapf/yapf_rail.cpp |  14 ++--
+ src/random_access_file.cpp        |  18 ++---
+ src/random_access_file_type.h     |   4 +-
+ src/saveload/oldloader.cpp        |  17 ++--
+ src/saveload/oldloader.h          |   2 +-
+ src/saveload/saveload.cpp         |  47 ++++++-----
+ src/screenshot.cpp                |  33 +++-----
+ src/script/script_scanner.cpp     |   8 +-
+ src/script/squirrel.cpp           |  32 +++-----
+ src/settingsgen/settingsgen.cpp   |  64 ++++++++-------
+ src/signature.cpp                 |  18 ++---
+ src/stdafx.h                      |   6 --
+ src/strings.cpp                   |   7 +-
+ src/textfile_gui.cpp              |   7 +-
+ 42 files changed, 382 insertions(+), 456 deletions(-)
+
+diff --git a/src/bmp.cpp b/src/bmp.cpp
+index 544217f51f58a..360438c135c1c 100644
+--- a/src/bmp.cpp
++++ b/src/bmp.cpp
+@@ -8,6 +8,7 @@
+ /** @file bmp.cpp Read and write support for bmps. */
+ 
+ #include "stdafx.h"
++#include "fileio_type.h"
+ #include "bmp.h"
+ #include "core/bitmath_func.hpp"
+ #include "core/alloc_func.hpp"
+@@ -15,13 +16,7 @@
+ 
+ #include "safeguards.h"
+ 
+-void BmpInitializeBuffer(BmpBuffer *buffer, FILE *file)
+-{
+-	buffer->pos      = -1;
+-	buffer->file     = file;
+-	buffer->read     = 0;
+-	buffer->real_pos = ftell(file);
+-}
++BmpBuffer::BmpBuffer(FileHandle &&file) : pos(-1), read(0), file(std::move(file)), real_pos(std::ftell(this->file)) {}
+ 
+ static inline void AdvanceBuffer(BmpBuffer *buffer)
+ {
+diff --git a/src/bmp.h b/src/bmp.h
+index 557244e1eec29..29658e50db951 100644
+--- a/src/bmp.h
++++ b/src/bmp.h
+@@ -33,11 +33,12 @@ struct BmpBuffer {
+ 	uint8_t data[BMP_BUFFER_SIZE];
+ 	int pos;
+ 	int read;
+-	FILE *file;
++	FileHandle file;
+ 	uint real_pos;
++
++	BmpBuffer(FileHandle &&file);
+ };
+ 
+-void BmpInitializeBuffer(BmpBuffer *buffer, FILE *file);
+ bool BmpReadHeader(BmpBuffer *buffer, BmpInfo *info, BmpData *data);
+ bool BmpReadBitmap(BmpBuffer *buffer, BmpInfo *info, BmpData *data);
+ void BmpDestroyData(BmpData *data);
+diff --git a/src/console.cpp b/src/console.cpp
+index 373cc274b9118..fa23eacf1471c 100644
+--- a/src/console.cpp
++++ b/src/console.cpp
+@@ -34,11 +34,11 @@ static const uint ICON_MAX_RECURSE = 10;     ///< Maximum number of recursion
+ 	return aliases;
+ }
+ 
+-FILE *_iconsole_output_file;
++std::optional<FileHandle> _iconsole_output_file;
+ 
+ void IConsoleInit()
+ {
+-	_iconsole_output_file = nullptr;
++	_iconsole_output_file = std::nullopt;
+ 	_redirect_console_to_client = INVALID_CLIENT_ID;
+ 	_redirect_console_to_admin  = INVALID_ADMIN_ID;
+ 
+@@ -49,13 +49,12 @@ void IConsoleInit()
+ 
+ static void IConsoleWriteToLogFile(const std::string &string)
+ {
+-	if (_iconsole_output_file != nullptr) {
++	if (_iconsole_output_file.has_value()) {
+ 		/* if there is an console output file ... also print it there */
+ 		try {
+-			fmt::print(_iconsole_output_file, "{}{}\n", GetLogPrefix(), string);
++			fmt::print(*_iconsole_output_file, "{}{}\n", GetLogPrefix(), string);
+ 		} catch (const std::system_error &) {
+-			fclose(_iconsole_output_file);
+-			_iconsole_output_file = nullptr;
++			_iconsole_output_file.reset();
+ 			IConsolePrint(CC_ERROR, "Cannot write to console log file; closing the log file.");
+ 		}
+ 	}
+@@ -63,10 +62,9 @@ static void IConsoleWriteToLogFile(const std::string &string)
+ 
+ bool CloseConsoleLogIfActive()
+ {
+-	if (_iconsole_output_file != nullptr) {
++	if (_iconsole_output_file.has_value()) {
+ 		IConsolePrint(CC_INFO, "Console log file closed.");
+-		fclose(_iconsole_output_file);
+-		_iconsole_output_file = nullptr;
++		_iconsole_output_file.reset();
+ 		return true;
+ 	}
+ 
+diff --git a/src/console_cmds.cpp b/src/console_cmds.cpp
+index 4656ecc52f812..7cca29708594b 100644
+--- a/src/console_cmds.cpp
++++ b/src/console_cmds.cpp
+@@ -1112,15 +1112,14 @@ DEF_CONSOLE_CMD(ConExec)
+ 
+ 	if (argc < 2) return false;
+ 
+-	FILE *script_file = FioFOpenFile(argv[1], "r", BASE_DIR);
++	auto script_file = FioFOpenFile(argv[1], "r", BASE_DIR);
+ 
+-	if (script_file == nullptr) {
++	if (!script_file.has_value()) {
+ 		if (argc == 2 || atoi(argv[2]) != 0) IConsolePrint(CC_ERROR, "Script file '{}' not found.", argv[1]);
+ 		return true;
+ 	}
+ 
+ 	if (_script_current_depth == 11) {
+-		FioFCloseFile(script_file);
+ 		IConsolePrint(CC_ERROR, "Maximum 'exec' depth reached; script A is calling script B is calling script C ... more than 10 times.");
+ 		return true;
+ 	}
+@@ -1129,7 +1128,7 @@ DEF_CONSOLE_CMD(ConExec)
+ 	uint script_depth = _script_current_depth;
+ 
+ 	char cmdline[ICON_CMDLN_SIZE];
+-	while (fgets(cmdline, sizeof(cmdline), script_file) != nullptr) {
++	while (fgets(cmdline, sizeof(cmdline), *script_file) != nullptr) {
+ 		/* Remove newline characters from the executing script */
+ 		for (char *cmdptr = cmdline; *cmdptr != '\0'; cmdptr++) {
+ 			if (*cmdptr == '\n' || *cmdptr == '\r') {
+@@ -1145,12 +1144,11 @@ DEF_CONSOLE_CMD(ConExec)
+ 		if (_script_current_depth == script_depth - 1) break;
+ 	}
+ 
+-	if (ferror(script_file)) {
++	if (ferror(*script_file) != 0) {
+ 		IConsolePrint(CC_ERROR, "Encountered error while trying to read from script file '{}'.", argv[1]);
+ 	}
+ 
+ 	if (_script_current_depth == script_depth) _script_current_depth--;
+-	FioFCloseFile(script_file);
+ 	return true;
+ }
+ 
+@@ -1175,7 +1173,7 @@ extern void ShowFramerateWindow();
+ 
+ DEF_CONSOLE_CMD(ConScript)
+ {
+-	extern FILE *_iconsole_output_file;
++	extern std::optional<FileHandle> _iconsole_output_file;
+ 
+ 	if (argc == 0) {
+ 		IConsolePrint(CC_HELP, "Start or stop logging console output to a file. Usage: 'script <filename>'.");
+@@ -1186,8 +1184,8 @@ DEF_CONSOLE_CMD(ConScript)
+ 	if (!CloseConsoleLogIfActive()) {
+ 		if (argc < 2) return false;
+ 
+-		_iconsole_output_file = fopen(argv[1], "ab");
+-		if (_iconsole_output_file == nullptr) {
++		_iconsole_output_file = FileHandle::Open(argv[1], "ab");
++		if (_iconsole_output_file) {
+ 			IConsolePrint(CC_ERROR, "Could not open console log file '{}'.", argv[1]);
+ 		} else {
+ 			IConsolePrint(CC_INFO, "Console log output started to '{}'.", argv[1]);
+diff --git a/src/crashlog.cpp b/src/crashlog.cpp
+index b728406fd87a1..04129d7c3bd02 100644
+--- a/src/crashlog.cpp
++++ b/src/crashlog.cpp
+@@ -190,15 +190,14 @@ bool CrashLog::WriteCrashLog()
+ {
+ 	this->crashlog_filename = this->CreateFileName(".json.log");
+ 
+-	FILE *file = FioFOpenFile(this->crashlog_filename, "w", NO_DIRECTORY);
+-	if (file == nullptr) return false;
++	auto file = FioFOpenFile(this->crashlog_filename, "w", NO_DIRECTORY);
++	if (!file.has_value()) return false;
+ 
+ 	std::string survey_json = this->survey.dump(4);
+ 
+ 	size_t len = survey_json.size();
+-	size_t written = fwrite(survey_json.data(), 1, len, file);
++	size_t written = fwrite(survey_json.data(), 1, len, *file);
+ 
+-	FioFCloseFile(file);
+ 	return len == written;
+ }
+ 
+diff --git a/src/debug.cpp b/src/debug.cpp
+index 8ba96ef94236b..5c33cc8ff007f 100644
+--- a/src/debug.cpp
++++ b/src/debug.cpp
+@@ -109,18 +109,18 @@ void DumpDebugFacilityNames(std::back_insert_iterator<std::string> &output_itera
+ void DebugPrint(const char *category, int level, const std::string &message)
+ {
+ 	if (strcmp(category, "desync") == 0 && level != 0) {
+-		static FILE *f = FioFOpenFile("commands-out.log", "wb", AUTOSAVE_DIR);
+-		if (f == nullptr) return;
++		static auto f = FioFOpenFile("commands-out.log", "wb", AUTOSAVE_DIR);
++		if (!f.has_value()) return;
+ 
+-		fmt::print(f, "{}{}\n", GetLogPrefix(true), message);
+-		fflush(f);
++		fmt::print(*f, "{}{}\n", GetLogPrefix(true), message);
++		fflush(*f);
+ #ifdef RANDOM_DEBUG
+ 	} else if (strcmp(category, "random") == 0) {
+-		static FILE *f = FioFOpenFile("random-out.log", "wb", AUTOSAVE_DIR);
+-		if (f == nullptr) return;
++		static auto f = FioFOpenFile("random-out.log", "wb", AUTOSAVE_DIR);
++		if (!f.has_value()) return;
+ 
+-		fmt::print(f, "{}\n", message);
+-		fflush(f);
++		fmt::print(*f, "{}\n", message);
++		fflush(*f);
+ #endif
+ 	} else {
+ 		fmt::print(stderr, "{}dbg: [{}:{}] {}\n", GetLogPrefix(true), category, level, message);
+diff --git a/src/dedicated.cpp b/src/dedicated.cpp
+index df457f2559b37..1e5ad657dfaf3 100644
+--- a/src/dedicated.cpp
++++ b/src/dedicated.cpp
+@@ -11,8 +11,8 @@
+ #include "fileio_func.h"
+ #include "debug.h"
+ 
+-std::string _log_file; ///< File to reroute output of a forked OpenTTD to
+-std::unique_ptr<FILE, FileDeleter> _log_fd; ///< File to reroute output of a forked OpenTTD to
++std::string _log_file; ///< Filename to reroute output of a forked OpenTTD to
++std::optional<FileHandle> _log_fd; ///< File to reroute output of a forked OpenTTD to
+ 
+ #if defined(UNIX)
+ 
+@@ -31,17 +31,17 @@ void DedicatedFork()
+ 
+ 		case 0: { // We're the child
+ 			/* Open the log-file to log all stuff too */
+-			_log_fd.reset(fopen(_log_file.c_str(), "a"));
+-			if (!_log_fd) {
++			_log_fd = FileHandle::Open(_log_file, "a");
++			if (!_log_fd.has_value()) {
+ 				perror("Unable to open logfile");
+ 				exit(1);
+ 			}
+ 			/* Redirect stdout and stderr to log-file */
+-			if (dup2(fileno(_log_fd.get()), fileno(stdout)) == -1) {
++			if (dup2(fileno(*_log_fd), fileno(stdout)) == -1) {
+ 				perror("Rerouting stdout");
+ 				exit(1);
+ 			}
+-			if (dup2(fileno(_log_fd.get()), fileno(stderr)) == -1) {
++			if (dup2(fileno(*_log_fd), fileno(stderr)) == -1) {
+ 				perror("Rerouting stderr");
+ 				exit(1);
+ 			}
+diff --git a/src/driver.cpp b/src/driver.cpp
+index 26815874a0733..f9c68fc2661ae 100644
+--- a/src/driver.cpp
++++ b/src/driver.cpp
+@@ -134,8 +134,7 @@ bool DriverFactoryBase::SelectDriverImpl(const std::string &name, Driver::Type t
+ 					}
+ 
+ 					/* Write empty file to note we are attempting hardware acceleration. */
+-					auto f = FioFOpenFile(HWACCELERATION_TEST_FILE, "w", BASE_DIR);
+-					FioFCloseFile(f);
++					FioFOpenFile(HWACCELERATION_TEST_FILE, "w", BASE_DIR);
+ 				}
+ 
+ 				Driver *oldd = *GetActiveDriver(type);
+diff --git a/src/fileio.cpp b/src/fileio.cpp
+index 0f4d499594663..b3c3119e61a1a 100644
+--- a/src/fileio.cpp
++++ b/src/fileio.cpp
+@@ -119,11 +119,8 @@ static void FillValidSearchPaths(bool only_local_path)
+  */
+ bool FioCheckFileExists(const std::string &filename, Subdirectory subdir)
+ {
+-	FILE *f = FioFOpenFile(filename, "rb", subdir);
+-	if (f == nullptr) return false;
+-
+-	FioFCloseFile(f);
+-	return true;
++	auto f = FioFOpenFile(filename, "rb", subdir);
++	return f.has_value();
+ }
+ 
+ /**
+@@ -137,14 +134,6 @@ bool FileExists(const std::string &filename)
+ 	return std::filesystem::exists(OTTD2FS(filename), ec);
+ }
+ 
+-/**
+- * Close a file in a safe way.
+- */
+-void FioFCloseFile(FILE *f)
+-{
+-	fclose(f);
+-}
+-
+ /**
+  * Find a path to the filename in one of the search directories.
+  * @param subdir Subdirectory to try.
+@@ -190,7 +179,7 @@ std::string FioFindDirectory(Subdirectory subdir)
+ 	return _personal_dir;
+ }
+ 
+-static FILE *FioFOpenFileSp(const std::string &filename, const char *mode, Searchpath sp, Subdirectory subdir, size_t *filesize)
++static std::optional<FileHandle> FioFOpenFileSp(const std::string &filename, const char *mode, Searchpath sp, Subdirectory subdir, size_t *filesize)
+ {
+ #if defined(_WIN32)
+ 	/* fopen is implemented as a define with ellipses for
+@@ -200,7 +189,6 @@ static FILE *FioFOpenFileSp(const std::string &filename, const char *mode, Searc
+ 	wchar_t Lmode[5];
+ 	MultiByteToWideChar(CP_ACP, 0, mode, -1, Lmode, static_cast<int>(std::size(Lmode)));
+ #endif
+-	FILE *f = nullptr;
+ 	std::string buf;
+ 
+ 	if (subdir == NO_DIRECTORY) {
+@@ -209,17 +197,17 @@ static FILE *FioFOpenFileSp(const std::string &filename, const char *mode, Searc
+ 		buf = _searchpaths[sp] + _subdirs[subdir] + filename;
+ 	}
+ 
+-	f = fopen(buf.c_str(), mode);
++	auto f = FileHandle::Open(buf, mode);
+ #if !defined(_WIN32)
+-	if (f == nullptr && strtolower(buf, subdir == NO_DIRECTORY ? 0 : _searchpaths[sp].size() - 1) ) {
+-		f = fopen(buf.c_str(), mode);
++	if (!f.has_value() && strtolower(buf, subdir == NO_DIRECTORY ? 0 : _searchpaths[sp].size() - 1) ) {
++		f = FileHandle::Open(buf, mode);
+ 	}
+ #endif
+-	if (f != nullptr && filesize != nullptr) {
++	if (f.has_value() && filesize != nullptr) {
+ 		/* Find the size of the file */
+-		fseek(f, 0, SEEK_END);
+-		*filesize = ftell(f);
+-		fseek(f, 0, SEEK_SET);
++		fseek(*f, 0, SEEK_END);
++		*filesize = ftell(*f);
++		fseek(*f, 0, SEEK_SET);
+ 	}
+ 	return f;
+ }
+@@ -231,14 +219,13 @@ static FILE *FioFOpenFileSp(const std::string &filename, const char *mode, Searc
+  * @return File handle of the opened file, or \c nullptr if the file is not available.
+  * @note The file is read from within the tar file, and may not return \c EOF after reading the whole file.
+  */
+-FILE *FioFOpenFileTar(const TarFileListEntry &entry, size_t *filesize)
++static std::optional<FileHandle> FioFOpenFileTar(const TarFileListEntry &entry, size_t *filesize)
+ {
+-	FILE *f = fopen(entry.tar_filename.c_str(), "rb");
+-	if (f == nullptr) return f;
++	auto f = FileHandle::Open(entry.tar_filename, "rb");
++	if (!f.has_value()) return std::nullopt;
+ 
+-	if (fseek(f, entry.position, SEEK_SET) < 0) {
+-		fclose(f);
+-		return nullptr;
++	if (fseek(*f, entry.position, SEEK_SET) < 0) {
++		return std::nullopt;
+ 	}
+ 
+ 	if (filesize != nullptr) *filesize = entry.size;
+@@ -251,19 +238,18 @@ FILE *FioFOpenFileTar(const TarFileListEntry &entry, size_t *filesize)
+  * @param subdir Subdirectory to open.
+  * @return File handle of the opened file, or \c nullptr if the file is not available.
+  */
+-FILE *FioFOpenFile(const std::string &filename, const char *mode, Subdirectory subdir, size_t *filesize)
++std::optional<FileHandle> FioFOpenFile(const std::string &filename, const char *mode, Subdirectory subdir, size_t *filesize)
+ {
+-	FILE *f = nullptr;
+-
++	std::optional<FileHandle> f = std::nullopt;
+ 	assert(subdir < NUM_SUBDIRS || subdir == NO_DIRECTORY);
+ 
+ 	for (Searchpath sp : _valid_searchpaths) {
+ 		f = FioFOpenFileSp(filename, mode, sp, subdir, filesize);
+-		if (f != nullptr || subdir == NO_DIRECTORY) break;
++		if (f.has_value() || subdir == NO_DIRECTORY) break;
+ 	}
+ 
+ 	/* We can only use .tar in case of data-dir, and read-mode */
+-	if (f == nullptr && mode[0] == 'r' && subdir != NO_DIRECTORY) {
++	if (!f.has_value() && mode[0] == 'r' && subdir != NO_DIRECTORY) {
+ 		/* Filenames in tars are always forced to be lowercase */
+ 		std::string resolved_name = filename;
+ 		strtolower(resolved_name);
+@@ -274,7 +260,7 @@ FILE *FioFOpenFile(const std::string &filename, const char *mode, Subdirectory s
+ 		std::string token;
+ 		while (std::getline(ss, token, PATHSEPCHAR)) {
+ 			if (token == "..") {
+-				if (tokens.size() < 2) return nullptr;
++				if (tokens.size() < 2) return std::nullopt;
+ 				tokens.pop_back();
+ 			} else if (token == ".") {
+ 				/* Do nothing. "." means current folder, but you can create tar files with "." in the path.
+@@ -302,11 +288,11 @@ FILE *FioFOpenFile(const std::string &filename, const char *mode, Subdirectory s
+ 
+ 	/* Sometimes a full path is given. To support
+ 	 * the 'subdirectory' must be 'removed'. */
+-	if (f == nullptr && subdir != NO_DIRECTORY) {
++	if (!f.has_value() && subdir != NO_DIRECTORY) {
+ 		switch (subdir) {
+ 			case BASESET_DIR:
+ 				f = FioFOpenFile(filename, mode, OLD_GM_DIR, filesize);
+-				if (f != nullptr) break;
++				if (f.has_value()) break;
+ 				[[fallthrough]];
+ 			case NEWGRF_DIR:
+ 				f = FioFOpenFile(filename, mode, OLD_DATA_DIR, filesize);
+@@ -479,12 +465,13 @@ bool TarScanner::AddFile(const std::string &filename, size_t, [[maybe_unused]] c
+ 	TarList::iterator it = _tar_list[this->subdir].find(filename);
+ 	if (it != _tar_list[this->subdir].end()) return false;
+ 
+-	FILE *f = fopen(filename.c_str(), "rb");
++	auto of = FileHandle::Open(filename, "rb");
+ 	/* Although the file has been found there can be
+ 	 * a number of reasons we cannot open the file.
+ 	 * Most common case is when we simply have not
+ 	 * been given read access. */
+-	if (f == nullptr) return false;
++	if (!of) return false;
++	auto &f = *of;
+ 
+ 	_tar_list[this->subdir][filename] = std::string{};
+ 
+@@ -509,7 +496,6 @@ bool TarScanner::AddFile(const std::string &filename, size_t, [[maybe_unused]] c
+ 			if (memcmp(&th, &empty[0], 512) == 0) continue;
+ 
+ 			Debug(misc, 0, "The file '{}' isn't a valid tar-file", filename);
+-			fclose(f);
+ 			return false;
+ 		}
+ 
+@@ -583,14 +569,13 @@ bool TarScanner::AddFile(const std::string &filename, size_t, [[maybe_unused]] c
+ 		skip = Align(skip, 512);
+ 		if (fseek(f, skip, SEEK_CUR) < 0) {
+ 			Debug(misc, 0, "The file '{}' can't be read as a valid tar-file", filename);
+-			fclose(f);
+ 			return false;
+ 		}
+ 		pos += skip;
+ 	}
+ 
+ 	Debug(misc, 4, "Found tar '{}' with {} new files", filename, num);
+-	fclose(f);
++	f.Close();
+ 
+ 	return true;
+ }
+@@ -637,15 +622,15 @@ bool ExtractTar(const std::string &tar_filename, Subdirectory subdir)
+ 
+ 		/* First open the file in the .tar. */
+ 		size_t to_copy = 0;
+-		std::unique_ptr<FILE, FileDeleter> in(FioFOpenFileTar(it2.second, &to_copy));
+-		if (!in) {
++		auto in = FioFOpenFileTar(it2.second, &to_copy);
++		if (!in.has_value()) {
+ 			Debug(misc, 6, "Extracting {} failed; could not open {}", filename, tar_filename);
+ 			return false;
+ 		}
+ 
+ 		/* Now open the 'output' file. */
+-		std::unique_ptr<FILE, FileDeleter> out(fopen(filename.c_str(), "wb"));
+-		if (!out) {
++		auto out = FileHandle::Open(filename, "wb");
++		if (!out.has_value()) {
+ 			Debug(misc, 6, "Extracting {} failed; could not open {}", filename, filename);
+ 			return false;
+ 		}
+@@ -654,8 +639,8 @@ bool ExtractTar(const std::string &tar_filename, Subdirectory subdir)
+ 		char buffer[4096];
+ 		size_t read;
+ 		for (; to_copy != 0; to_copy -= read) {
+-			read = fread(buffer, 1, std::min(to_copy, lengthof(buffer)), in.get());
+-			if (read <= 0 || fwrite(buffer, 1, read, out.get()) != read) break;
++			read = fread(buffer, 1, std::min(to_copy, lengthof(buffer)), *in);
++			if (read <= 0 || fwrite(buffer, 1, read, *out) != read) break;
+ 		}
+ 
+ 		if (to_copy != 0) {
+@@ -1039,20 +1024,18 @@ void SanitizeFilename(std::string &filename)
+  */
+ std::unique_ptr<char[]> ReadFileToMem(const std::string &filename, size_t &lenp, size_t maxsize)
+ {
+-	FILE *in = fopen(filename.c_str(), "rb");
+-	if (in == nullptr) return nullptr;
+-
+-	FileCloser fc(in);
++	auto in = FileHandle::Open(filename, "rb");
++	if (!in.has_value()) return nullptr;
+ 
+-	fseek(in, 0, SEEK_END);
+-	size_t len = ftell(in);
+-	fseek(in, 0, SEEK_SET);
++	fseek(*in, 0, SEEK_END);
++	size_t len = ftell(*in);
++	fseek(*in, 0, SEEK_SET);
+ 	if (len > maxsize) return nullptr;
+ 
+ 	std::unique_ptr<char[]> mem = std::make_unique<char[]>(len + 1);
+ 
+ 	mem.get()[len] = 0;
+-	if (fread(mem.get(), len, 1, in) != 1) return nullptr;
++	if (fread(mem.get(), len, 1, *in) != 1) return nullptr;
+ 
+ 	lenp = len;
+ 	return mem;
+@@ -1176,3 +1159,34 @@ uint FileScanner::Scan(const std::string_view extension, const std::string &dire
+ 	AppendPathSeparator(path);
+ 	return ScanPath(this, extension, OTTD2FS(path), path.size(), recursive);
+ }
++
++/**
++ * Open an RAII file handle if possible.
++ * @param filename Filename (in native encoding) to open.
++ * @param mode Mode to open file.
++ * @return FileHandle, or std::nullopt on failure.
++ */
++std::optional<FileHandle> FileHandle::OpenNative(const std::filesystem::path &filename, const std::string &mode)
++{
++#if defined(_WIN32)
++	/* Windows also requires mode to be wchar_t. */
++	auto f = _wfopen(filename.c_str(), OTTD2FS(mode).c_str());
++#else
++	auto f = fopen(filename.c_str(), mode.c_str());
++#endif /* _WIN32 */
++
++	if (f == nullptr) return std::nullopt;
++	return FileHandle(f);
++}
++
++/**
++ * Open an RAII file handle if possible.
++ * The canonical RAII-way is for FileHandle to open the file and throw an exception on failure.
++ * @param filename UTF-8 encoded filename to open.
++ * @param mode Mode to open file.
++ * @return FileHandle, or std::nullopt on failure.
++ */
++std::optional<FileHandle> FileHandle::Open(const std::string &filename, const std::string &mode)
++{
++	return FileHandle::OpenNative(OTTD2FS(filename), mode);
++}
+diff --git a/src/fileio_func.h b/src/fileio_func.h
+index eaa6f761644b3..0c2cff30f9396 100644
+--- a/src/fileio_func.h
++++ b/src/fileio_func.h
+@@ -13,8 +13,7 @@
+ #include "core/enum_type.hpp"
+ #include "fileio_type.h"
+ 
+-void FioFCloseFile(FILE *f);
+-FILE *FioFOpenFile(const std::string &filename, const char *mode, Subdirectory subdir, size_t *filesize = nullptr);
++std::optional<FileHandle> FioFOpenFile(const std::string &filename, const char *mode, Subdirectory subdir, size_t *filesize = nullptr);
+ bool FioCheckFileExists(const std::string &filename, Subdirectory subdir);
+ std::string FioFindFullPath(Subdirectory subdir, const std::string &filename);
+ std::string FioGetDirectory(Searchpath sp, Subdirectory subdir);
+@@ -81,24 +80,4 @@ class TarScanner : FileScanner {
+ 
+ DECLARE_ENUM_AS_BIT_SET(TarScanner::Mode)
+ 
+-/** Auto-close a file upon scope exit. */
+-class FileCloser {
+-	FILE *f;
+-
+-public:
+-	FileCloser(FILE *_f) : f(_f) {}
+-	~FileCloser()
+-	{
+-		fclose(f);
+-	}
+-};
+-
+-/** Helper to manage a FILE with a \c std::unique_ptr. */
+-struct FileDeleter {
+-	void operator()(FILE *f)
+-	{
+-		if (f) fclose(f);
+-	}
+-};
+-
+ #endif /* FILEIO_FUNC_H */
+diff --git a/src/fileio_type.h b/src/fileio_type.h
+index c871c1c14bf39..ab3d6438fff53 100644
+--- a/src/fileio_type.h
++++ b/src/fileio_type.h
+@@ -148,4 +148,31 @@ enum Searchpath : unsigned {
+ 
+ DECLARE_POSTFIX_INCREMENT(Searchpath)
+ 
++class FileHandle {
++public:
++	static std::optional<FileHandle> OpenNative(const std::filesystem::path &filename, const std::string &mode);
++	static std::optional<FileHandle> Open(const std::string &filename, const std::string &mode);
++
++	inline void Close() { this->f.reset(); }
++
++	inline operator FILE *()
++	{
++		assert(this->f != nullptr);
++		return this->f.get();
++	}
++
++private:
++	/** Helper to close a FILE * with a \c std::unique_ptr. */
++	struct FileDeleter {
++		void operator ()(FILE *f)
++		{
++			if (f != nullptr) fclose(f);
++		}
++	};
++
++	std::unique_ptr<FILE, FileDeleter> f;
++
++	FileHandle(FILE *f) : f(f) { assert(this->f != nullptr); }
++};
++
+ #endif /* FILEIO_TYPE_H */
+diff --git a/src/fios.cpp b/src/fios.cpp
+index ed5475c56d51a..e1236fddf5622 100644
+--- a/src/fios.cpp
++++ b/src/fios.cpp
+@@ -384,12 +384,11 @@ static void FiosGetFileList(SaveLoadOperation fop, bool show_dirs, FiosGetTypeAn
+  */
+ static std::string GetFileTitle(const std::string &file, Subdirectory subdir)
+ {
+-	FILE *f = FioFOpenFile(file + ".title", "r", subdir);
+-	if (f == nullptr) return {};
++	auto f = FioFOpenFile(file + ".title", "r", subdir);
++	if (!f.has_value()) return {};
+ 
+ 	char title[80];
+-	size_t read = fread(title, 1, lengthof(title), f);
+-	FioFCloseFile(f);
++	size_t read = fread(title, 1, lengthof(title), *f);
+ 
+ 	assert(read <= lengthof(title));
+ 	return StrMakeValid({title, read});
+@@ -606,12 +605,11 @@ class ScenarioScanner : protected FileScanner, public std::vector<ScenarioIdenti
+ 
+ 	bool AddFile(const std::string &filename, size_t, const std::string &) override
+ 	{
+-		FILE *f = FioFOpenFile(filename, "r", SCENARIO_DIR);
+-		if (f == nullptr) return false;
++		auto f = FioFOpenFile(filename, "r", SCENARIO_DIR);
++		if (!f.has_value()) return false;
+ 
+ 		ScenarioIdentifier id;
+-		int fret = fscanf(f, "%u", &id.scenid);
+-		FioFCloseFile(f);
++		int fret = fscanf(*f, "%u", &id.scenid);
+ 		if (fret != 1) return false;
+ 		id.filename = filename;
+ 
+@@ -623,17 +621,15 @@ class ScenarioScanner : protected FileScanner, public std::vector<ScenarioIdenti
+ 		 * This is safe as we check on extension which
+ 		 * must always exist. */
+ 		f = FioFOpenFile(filename.substr(0, filename.rfind('.')), "rb", SCENARIO_DIR, &size);
+-		if (f == nullptr) return false;
++		if (!f.has_value()) return false;
+ 
+ 		/* calculate md5sum */
+-		while ((len = fread(buffer, 1, (size > sizeof(buffer)) ? sizeof(buffer) : size, f)) != 0 && size != 0) {
++		while ((len = fread(buffer, 1, (size > sizeof(buffer)) ? sizeof(buffer) : size, *f)) != 0 && size != 0) {
+ 			size -= len;
+ 			checksum.Append(buffer, len);
+ 		}
+ 		checksum.Finish(id.md5sum);
+ 
+-		FioFCloseFile(f);
+-
+ 		include(*this, id);
+ 		return true;
+ 	}
+diff --git a/src/game/game_text.cpp b/src/game/game_text.cpp
+index 2a8dab7690d41..9f9b3f6ebf129 100644
+--- a/src/game/game_text.cpp
++++ b/src/game/game_text.cpp
+@@ -49,10 +49,8 @@ void CDECL StrgenFatalI(const std::string &msg)
+ LanguageStrings ReadRawLanguageStrings(const std::string &file)
+ {
+ 	size_t to_read;
+-	FILE *fh = FioFOpenFile(file, "rb", GAME_DIR, &to_read);
+-	if (fh == nullptr) return LanguageStrings();
+-
+-	FileCloser fhClose(fh);
++	auto fh = FioFOpenFile(file, "rb", GAME_DIR, &to_read);
++	if (!fh.has_value()) return LanguageStrings();
+ 
+ 	auto pos = file.rfind(PATHSEPCHAR);
+ 	if (pos == std::string::npos) return LanguageStrings();
+@@ -64,7 +62,7 @@ LanguageStrings ReadRawLanguageStrings(const std::string &file)
+ 	LanguageStrings ret(langname.substr(0, langname.find('.')));
+ 
+ 	char buffer[2048];
+-	while (to_read != 0 && fgets(buffer, sizeof(buffer), fh) != nullptr) {
++	while (to_read != 0 && fgets(buffer, sizeof(buffer), *fh) != nullptr) {
+ 		size_t len = strlen(buffer);
+ 
+ 		/* Remove trailing spaces/newlines from the string. */
+diff --git a/src/gfxinit.cpp b/src/gfxinit.cpp
+index f2fccc890c3a0..46fbd3f7b7e35 100644
+--- a/src/gfxinit.cpp
++++ b/src/gfxinit.cpp
+@@ -418,12 +418,10 @@ void GraphicsSet::CopyCompatibleConfig(const GraphicsSet &src)
+ /* static */ MD5File::ChecksumResult GraphicsSet::CheckMD5(const MD5File *file, Subdirectory subdir)
+ {
+ 	size_t size = 0;
+-	FILE *f = FioFOpenFile(file->filename, "rb", subdir, &size);
+-	if (f == nullptr) return MD5File::CR_NO_FILE;
++	auto f = FioFOpenFile(file->filename, "rb", subdir, &size);
++	if (!f.has_value()) return MD5File::CR_NO_FILE;
+ 
+-	size_t max = GRFGetSizeOfDataSection(f);
+-
+-	FioFCloseFile(f);
++	size_t max = GRFGetSizeOfDataSection(*f);
+ 
+ 	return file->CheckMD5(subdir, max);
+ }
+@@ -441,9 +439,8 @@ void GraphicsSet::CopyCompatibleConfig(const GraphicsSet &src)
+ MD5File::ChecksumResult MD5File::CheckMD5(Subdirectory subdir, size_t max_size) const
+ {
+ 	size_t size;
+-	FILE *f = FioFOpenFile(this->filename, "rb", subdir, &size);
+-
+-	if (f == nullptr) return CR_NO_FILE;
++	auto f = FioFOpenFile(this->filename, "rb", subdir, &size);
++	if (!f.has_value()) return CR_NO_FILE;
+ 
+ 	size = std::min(size, max_size);
+ 
+@@ -452,13 +449,11 @@ MD5File::ChecksumResult MD5File::CheckMD5(Subdirectory subdir, size_t max_size)
+ 	MD5Hash digest;
+ 	size_t len;
+ 
+-	while ((len = fread(buffer, 1, (size > sizeof(buffer)) ? sizeof(buffer) : size, f)) != 0 && size != 0) {
++	while ((len = fread(buffer, 1, (size > sizeof(buffer)) ? sizeof(buffer) : size, *f)) != 0 && size != 0) {
+ 		size -= len;
+ 		checksum.Append(buffer, len);
+ 	}
+ 
+-	FioFCloseFile(f);
+-
+ 	checksum.Finish(digest);
+ 	return this->hash == digest ? CR_MATCH : CR_MISMATCH;
+ }
+diff --git a/src/heightmap.cpp b/src/heightmap.cpp
+index 3252c392dcb30..ccd080828c884 100644
+--- a/src/heightmap.cpp
++++ b/src/heightmap.cpp
+@@ -136,12 +136,11 @@ static void ReadHeightmapPNGImageData(uint8_t *map, png_structp png_ptr, png_inf
+  */
+ static bool ReadHeightmapPNG(const char *filename, uint *x, uint *y, uint8_t **map)
+ {
+-	FILE *fp;
+ 	png_structp png_ptr = nullptr;
+ 	png_infop info_ptr  = nullptr;
+ 
+-	fp = FioFOpenFile(filename, "rb", HEIGHTMAP_DIR);
+-	if (fp == nullptr) {
++	auto fp = FioFOpenFile(filename, "rb", HEIGHTMAP_DIR);
++	if (!fp.has_value()) {
+ 		ShowErrorMessage(STR_ERROR_PNGMAP, STR_ERROR_PNGMAP_FILE_NOT_FOUND, WL_ERROR);
+ 		return false;
+ 	}
+@@ -149,19 +148,17 @@ static bool ReadHeightmapPNG(const char *filename, uint *x, uint *y, uint8_t **m
+ 	png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
+ 	if (png_ptr == nullptr) {
+ 		ShowErrorMessage(STR_ERROR_PNGMAP, STR_ERROR_PNGMAP_MISC, WL_ERROR);
+-		fclose(fp);
+ 		return false;
+ 	}
+ 
+ 	info_ptr = png_create_info_struct(png_ptr);
+ 	if (info_ptr == nullptr || setjmp(png_jmpbuf(png_ptr))) {
+ 		ShowErrorMessage(STR_ERROR_PNGMAP, STR_ERROR_PNGMAP_MISC, WL_ERROR);
+-		fclose(fp);
+ 		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
+ 		return false;
+ 	}
+ 
+-	png_init_io(png_ptr, fp);
++	png_init_io(png_ptr, *fp);
+ 
+ 	/* Allocate memory and read image, without alpha or 16-bit samples
+ 	 * (result is either 8-bit indexed/grayscale or 24-bit RGB) */
+@@ -172,7 +169,6 @@ static bool ReadHeightmapPNG(const char *filename, uint *x, uint *y, uint8_t **m
+ 	 * (this should have been taken care of by stripping alpha and 16-bit samples on load) */
+ 	if ((png_get_channels(png_ptr, info_ptr) != 1) && (png_get_channels(png_ptr, info_ptr) != 3) && (png_get_bit_depth(png_ptr, info_ptr) != 8)) {
+ 		ShowErrorMessage(STR_ERROR_PNGMAP, STR_ERROR_PNGMAP_IMAGE_TYPE, WL_ERROR);
+-		fclose(fp);
+ 		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
+ 		return false;
+ 	}
+@@ -182,7 +178,6 @@ static bool ReadHeightmapPNG(const char *filename, uint *x, uint *y, uint8_t **m
+ 
+ 	if (!IsValidHeightmapDimension(width, height)) {
+ 		ShowErrorMessage(STR_ERROR_PNGMAP, STR_ERROR_HEIGHTMAP_TOO_LARGE, WL_ERROR);
+-		fclose(fp);
+ 		png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
+ 		return false;
+ 	}
+@@ -195,7 +190,6 @@ static bool ReadHeightmapPNG(const char *filename, uint *x, uint *y, uint8_t **m
+ 	*x = width;
+ 	*y = height;
+ 
+-	fclose(fp);
+ 	png_destroy_read_struct(&png_ptr, &info_ptr, nullptr);
+ 	return true;
+ }
+@@ -265,32 +259,27 @@ static void ReadHeightmapBMPImageData(uint8_t *map, BmpInfo *info, BmpData *data
+  */
+ static bool ReadHeightmapBMP(const char *filename, uint *x, uint *y, uint8_t **map)
+ {
+-	FILE *f;
++	auto f = FioFOpenFile(filename, "rb", HEIGHTMAP_DIR);
++	if (!f.has_value()) {
++		ShowErrorMessage(STR_ERROR_BMPMAP, STR_ERROR_PNGMAP_FILE_NOT_FOUND, WL_ERROR);
++		return false;
++	}
++
++	BmpBuffer buffer(std::move(*f));
+ 	BmpInfo info;
+ 	BmpData data;
+-	BmpBuffer buffer;
+ 
+ 	/* Init BmpData */
+ 	memset(&data, 0, sizeof(data));
+ 
+-	f = FioFOpenFile(filename, "rb", HEIGHTMAP_DIR);
+-	if (f == nullptr) {
+-		ShowErrorMessage(STR_ERROR_BMPMAP, STR_ERROR_PNGMAP_FILE_NOT_FOUND, WL_ERROR);
+-		return false;
+-	}
+-
+-	BmpInitializeBuffer(&buffer, f);
+-
+ 	if (!BmpReadHeader(&buffer, &info, &data)) {
+ 		ShowErrorMessage(STR_ERROR_BMPMAP, STR_ERROR_BMPMAP_IMAGE_TYPE, WL_ERROR);
+-		fclose(f);
+ 		BmpDestroyData(&data);
+ 		return false;
+ 	}
+ 
+ 	if (!IsValidHeightmapDimension(info.width, info.height)) {
+ 		ShowErrorMessage(STR_ERROR_BMPMAP, STR_ERROR_HEIGHTMAP_TOO_LARGE, WL_ERROR);
+-		fclose(f);
+ 		BmpDestroyData(&data);
+ 		return false;
+ 	}
+@@ -298,7 +287,6 @@ static bool ReadHeightmapBMP(const char *filename, uint *x, uint *y, uint8_t **m
+ 	if (map != nullptr) {
+ 		if (!BmpReadBitmap(&buffer, &info, &data)) {
+ 			ShowErrorMessage(STR_ERROR_BMPMAP, STR_ERROR_BMPMAP_IMAGE_TYPE, WL_ERROR);
+-			fclose(f);
+ 			BmpDestroyData(&data);
+ 			return false;
+ 		}
+@@ -312,7 +300,6 @@ static bool ReadHeightmapBMP(const char *filename, uint *x, uint *y, uint8_t **m
+ 	*x = info.width;
+ 	*y = info.height;
+ 
+-	fclose(f);
+ 	return true;
+ }
+ 
+diff --git a/src/highscore.cpp b/src/highscore.cpp
+index f6fd57978bc97..4ae061d89fcef 100644
+--- a/src/highscore.cpp
++++ b/src/highscore.cpp
+@@ -122,18 +122,19 @@ int8_t SaveHighScoreValueNetwork()
+ /** Save HighScore table to file */
+ void SaveToHighScore()
+ {
+-	std::unique_ptr<FILE, FileDeleter> fp(fopen(_highscore_file.c_str(), "wb"));
+-	if (fp == nullptr) return;
++	auto ofp = FileHandle::Open(_highscore_file, "wb");
++	if (!ofp.has_value()) return;
++	auto &fp = *ofp;
+ 
+ 	/* Does not iterate through the complete array!. */
+ 	for (int i = 0; i < SP_SAVED_HIGHSCORE_END; i++) {
+ 		for (HighScore &hs : _highscore_table[i]) {
+ 			/* This code is weird and old fashioned to keep compatibility with the old high score files. */
+ 			uint8_t name_length = ClampTo<uint8_t>(hs.name.size());
+-			if (fwrite(&name_length, sizeof(name_length), 1, fp.get()) != 1 || // Write the string length of the name
+-					fwrite(hs.name.data(), name_length, 1, fp.get()) > 1 || // Yes... could be 0 bytes too
+-					fwrite(&hs.score, sizeof(hs.score), 1, fp.get()) != 1 ||
+-					fwrite("  ", 2, 1, fp.get()) != 1) { // Used to be hs.title, not saved anymore; compatibility
++			if (fwrite(&name_length, sizeof(name_length), 1, fp) != 1 || // Write the string length of the name
++					fwrite(hs.name.data(), name_length, 1, fp) > 1 || // Yes... could be 0 bytes too
++					fwrite(&hs.score, sizeof(hs.score), 1, fp) != 1 ||
++					fwrite("  ", 2, 1, fp) != 1) { // Used to be hs.title, not saved anymore; compatibility
+ 				Debug(misc, 1, "Could not save highscore.");
+ 				return;
+ 			}
+@@ -146,8 +147,9 @@ void LoadFromHighScore()
+ {
+ 	std::fill(_highscore_table.begin(), _highscore_table.end(), HighScores{});
+ 
+-	std::unique_ptr<FILE, FileDeleter> fp(fopen(_highscore_file.c_str(), "rb"));
+-	if (fp == nullptr) return;
++	auto ofp = FileHandle::Open(_highscore_file, "rb");
++	if (!ofp.has_value()) return;
++	auto &fp = *ofp;
+ 
+ 	/* Does not iterate through the complete array!. */
+ 	for (int i = 0; i < SP_SAVED_HIGHSCORE_END; i++) {
+@@ -156,10 +158,10 @@ void LoadFromHighScore()
+ 			uint8_t name_length;
+ 			char buffer[std::numeric_limits<decltype(name_length)>::max() + 1];
+ 
+-			if (fread(&name_length, sizeof(name_length), 1, fp.get()) !=  1 ||
+-					fread(buffer, name_length, 1, fp.get()) > 1 || // Yes... could be 0 bytes too
+-					fread(&hs.score, sizeof(hs.score), 1, fp.get()) !=  1 ||
+-					fseek(fp.get(), 2, SEEK_CUR) == -1) { // Used to be hs.title, not saved anymore; compatibility
++			if (fread(&name_length, sizeof(name_length), 1, fp) !=  1 ||
++					fread(buffer, name_length, 1, fp) > 1 || // Yes... could be 0 bytes too
++					fread(&hs.score, sizeof(hs.score), 1, fp) !=  1 ||
++					fseek(fp, 2, SEEK_CUR) == -1) { // Used to be hs.title, not saved anymore; compatibility
+ 				Debug(misc, 1, "Highscore corrupted");
+ 				return;
+ 			}
+diff --git a/src/ini.cpp b/src/ini.cpp
+index bef9b6a41c7d9..20438d0adf2bb 100644
+--- a/src/ini.cpp
++++ b/src/ini.cpp
+@@ -98,7 +98,7 @@ bool IniFile::SaveToDisk(const std::string &filename)
+ 	return true;
+ }
+ 
+-/* virtual */ FILE *IniFile::OpenFile(const std::string &filename, Subdirectory subdir, size_t *size)
++/* virtual */ std::optional<FileHandle> IniFile::OpenFile(const std::string &filename, Subdirectory subdir, size_t *size)
+ {
+ 	/* Open the text file in binary mode to prevent end-of-line translations
+ 	 * done by ftell() and friends, as defined by K&R. */
+diff --git a/src/ini_load.cpp b/src/ini_load.cpp
+index e4209ad3b2ac1..58410b81ef714 100644
+--- a/src/ini_load.cpp
++++ b/src/ini_load.cpp
+@@ -196,13 +196,13 @@ void IniLoadFile::LoadFromDisk(const std::string &filename, Subdirectory subdir)
+ 	uint comment_alloc = 0;
+ 
+ 	size_t end;
+-	FILE *in = this->OpenFile(filename, subdir, &end);
+-	if (in == nullptr) return;
++	auto in = this->OpenFile(filename, subdir, &end);
++	if (!in.has_value()) return;
+ 
+-	end += ftell(in);
++	end += ftell(*in);
+ 
+ 	/* for each line in the file */
+-	while (static_cast<size_t>(ftell(in)) < end && fgets(buffer, sizeof(buffer), in)) {
++	while (static_cast<size_t>(ftell(*in)) < end && fgets(buffer, sizeof(buffer), *in)) {
+ 		char c, *s;
+ 		/* trim whitespace from the left side */
+ 		for (s = buffer; *s == ' ' || *s == '\t'; s++) {}
+@@ -298,6 +298,5 @@ void IniLoadFile::LoadFromDisk(const std::string &filename, Subdirectory subdir)
+ 	}
+ 
+ 	free(comment);
+-	fclose(in);
+ }
+ 
+diff --git a/src/ini_type.h b/src/ini_type.h
+index 2fb5a3333e491..5b255acca589f 100644
+--- a/src/ini_type.h
++++ b/src/ini_type.h
+@@ -71,9 +71,9 @@ struct IniLoadFile {
+ 	 * @param filename Name of the INI file.
+ 	 * @param subdir The subdir to load the file from.
+ 	 * @param[out] size Size of the opened file.
+-	 * @return File handle of the opened file, or \c nullptr.
++	 * @return File handle of the opened file, or \c std::nullopt.
+ 	 */
+-	virtual FILE *OpenFile(const std::string &filename, Subdirectory subdir, size_t *size) = 0;
++	virtual std::optional<FileHandle> OpenFile(const std::string &filename, Subdirectory subdir, size_t *size) = 0;
+ 
+ 	/**
+ 	 * Report an error about the file contents.
+@@ -90,7 +90,7 @@ struct IniFile : IniLoadFile {
+ 
+ 	bool SaveToDisk(const std::string &filename);
+ 
+-	FILE *OpenFile(const std::string &filename, Subdirectory subdir, size_t *size) override;
++	std::optional<FileHandle> OpenFile(const std::string &filename, Subdirectory subdir, size_t *size) override;
+ 	void ReportFileError(const char * const pre, const char * const buffer, const char * const post) override;
+ };
+ 
+diff --git a/src/music/dmusic.cpp b/src/music/dmusic.cpp
+index c7c2d9764247b..af3e1051ee1d4 100644
+--- a/src/music/dmusic.cpp
++++ b/src/music/dmusic.cpp
+@@ -82,23 +82,23 @@ struct DLSFile {
+ 	std::vector<DLSWave> waves;
+ 
+ 	/** Try loading a DLS file into memory. */
+-	bool LoadFile(const wchar_t *file);
++	bool LoadFile(const std::filesystem::path &file);
+ 
+ private:
+ 	/** Load an articulation structure from a DLS file. */
+-	bool ReadDLSArticulation(FILE *f, DWORD list_length, std::vector<CONNECTION> &out);
++	bool ReadDLSArticulation(FileHandle &f, DWORD list_length, std::vector<CONNECTION> &out);
+ 	/** Load a list of regions from a DLS file. */
+-	bool ReadDLSRegionList(FILE *f, DWORD list_length, DLSInstrument &instrument);
++	bool ReadDLSRegionList(FileHandle &f, DWORD list_length, DLSInstrument &instrument);
+ 	/** Load a single region from a DLS file. */
+-	bool ReadDLSRegion(FILE *f, DWORD list_length, std::vector<DLSRegion> &out);
++	bool ReadDLSRegion(FileHandle &f, DWORD list_length, std::vector<DLSRegion> &out);
+ 	/** Load a list of instruments from a DLS file. */
+-	bool ReadDLSInstrumentList(FILE *f, DWORD list_length);
++	bool ReadDLSInstrumentList(FileHandle &f, DWORD list_length);
+ 	/** Load a single instrument from a DLS file. */
+-	bool ReadDLSInstrument(FILE *f, DWORD list_length);
++	bool ReadDLSInstrument(FileHandle &f, DWORD list_length);
+ 	/** Load a list of waves from a DLS file. */
+-	bool ReadDLSWaveList(FILE *f, DWORD list_length);
++	bool ReadDLSWaveList(FileHandle &f, DWORD list_length);
+ 	/** Load a single wave from a DLS file. */
+-	bool ReadDLSWave(FILE *f, DWORD list_length, long offset);
++	bool ReadDLSWave(FileHandle &f, DWORD list_length, long offset);
+ };
+ 
+ /** A RIFF chunk header. */
+@@ -154,7 +154,7 @@ static std::vector<IDirectMusicDownload *> _dls_downloads;
+ static FMusicDriver_DMusic iFMusicDriver_DMusic;
+ 
+ 
+-bool DLSFile::ReadDLSArticulation(FILE *f, DWORD list_length, std::vector<CONNECTION> &out)
++bool DLSFile::ReadDLSArticulation(FileHandle &f, DWORD list_length, std::vector<CONNECTION> &out)
+ {
+ 	while (list_length > 0) {
+ 		ChunkHeader chunk;
+@@ -180,7 +180,7 @@ bool DLSFile::ReadDLSArticulation(FILE *f, DWORD list_length, std::vector<CONNEC
+ 	return true;
+ }
+ 
+-bool DLSFile::ReadDLSRegion(FILE *f, DWORD list_length, std::vector<DLSRegion> &out)
++bool DLSFile::ReadDLSRegion(FileHandle &f, DWORD list_length, std::vector<DLSRegion> &out)
+ {
+ 	out.push_back(DLSRegion());
+ 	DLSRegion &region = out.back();
+@@ -239,7 +239,7 @@ bool DLSFile::ReadDLSRegion(FILE *f, DWORD list_length, std::vector<DLSRegion> &
+ 	return true;
+ }
+ 
+-bool DLSFile::ReadDLSRegionList(FILE *f, DWORD list_length, DLSInstrument &instrument)
++bool DLSFile::ReadDLSRegionList(FileHandle &f, DWORD list_length, DLSInstrument &instrument)
+ {
+ 	while (list_length > 0) {
+ 		ChunkHeader chunk;
+@@ -265,7 +265,7 @@ bool DLSFile::ReadDLSRegionList(FILE *f, DWORD list_length, DLSInstrument &instr
+ 	return true;
+ }
+ 
+-bool DLSFile::ReadDLSInstrument(FILE *f, DWORD list_length)
++bool DLSFile::ReadDLSInstrument(FileHandle &f, DWORD list_length)
+ {
+ 	this->instruments.push_back(DLSInstrument());
+ 	DLSInstrument &instrument = this->instruments.back();
+@@ -309,7 +309,7 @@ bool DLSFile::ReadDLSInstrument(FILE *f, DWORD list_length)
+ 	return true;
+ }
+ 
+-bool DLSFile::ReadDLSInstrumentList(FILE *f, DWORD list_length)
++bool DLSFile::ReadDLSInstrumentList(FileHandle &f, DWORD list_length)
+ {
+ 	while (list_length > 0) {
+ 		ChunkHeader chunk;
+@@ -337,7 +337,7 @@ bool DLSFile::ReadDLSInstrumentList(FILE *f, DWORD list_length)
+ 	return true;
+ }
+ 
+-bool DLSFile::ReadDLSWave(FILE *f, DWORD list_length, long offset)
++bool DLSFile::ReadDLSWave(FileHandle &f, DWORD list_length, long offset)
+ {
+ 	this->waves.push_back(DLSWave());
+ 	DLSWave &wave = this->waves.back();
+@@ -397,7 +397,7 @@ bool DLSFile::ReadDLSWave(FILE *f, DWORD list_length, long offset)
+ 	return true;
+ }
+ 
+-bool DLSFile::ReadDLSWaveList(FILE *f, DWORD list_length)
++bool DLSFile::ReadDLSWaveList(FileHandle &f, DWORD list_length)
+ {
+ 	long base_offset = ftell(f);
+ 
+@@ -429,14 +429,13 @@ bool DLSFile::ReadDLSWaveList(FILE *f, DWORD list_length)
+ 	return true;
+ }
+ 
+-bool DLSFile::LoadFile(const wchar_t *file)
++bool DLSFile::LoadFile(const std::filesystem::path &file)
+ {
+ 	Debug(driver, 2, "DMusic: Try to load DLS file {}", FS2OTTD(file));
+ 
+-	FILE *f = _wfopen(file, L"rb");
+-	if (f == nullptr) return false;
+-
+-	FileCloser f_scope(f);
++	auto of = FileHandle::OpenNative(file, "rb");
++	if (!of.has_value()) return false;
++	auto &f = *of;
+ 
+ 	/* Check DLS file header. */
+ 	ChunkHeader hdr;
+diff --git a/src/music/midifile.cpp b/src/music/midifile.cpp
+index a5eddd62789aa..a030fa33d37ca 100644
+--- a/src/music/midifile.cpp
++++ b/src/music/midifile.cpp
+@@ -70,7 +70,7 @@ class ByteBuffer {
+ 	 * @param file file to read from at current position
+ 	 * @param len number of bytes to read
+ 	 */
+-	ByteBuffer(FILE *file, size_t len)
++	ByteBuffer(FileHandle &file, size_t len)
+ 	{
+ 		this->buf.resize(len);
+ 		if (fread(this->buf.data(), 1, len, file) == len) {
+@@ -186,7 +186,7 @@ class ByteBuffer {
+ 	}
+ };
+ 
+-static bool ReadTrackChunk(FILE *file, MidiFile &target)
++static bool ReadTrackChunk(FileHandle &file, MidiFile &target)
+ {
+ 	uint8_t buf[4];
+ 
+@@ -405,10 +405,9 @@ static bool FixupMidiData(MidiFile &target)
+  */
+ bool MidiFile::ReadSMFHeader(const std::string &filename, SMFHeader &header)
+ {
+-	FILE *file = FioFOpenFile(filename, "rb", Subdirectory::BASESET_DIR);
+-	if (!file) return false;
+-	bool result = ReadSMFHeader(file, header);
+-	FioFCloseFile(file);
++	auto file = FioFOpenFile(filename, "rb", Subdirectory::BASESET_DIR);
++	if (!file.has_value()) return false;
++	bool result = ReadSMFHeader(*file, header);
+ 	return result;
+ }
+ 
+@@ -419,7 +418,7 @@ bool MidiFile::ReadSMFHeader(const std::string &filename, SMFHeader &header)
+  * @param[out] header filled with data read
+  * @return true if a header in correct format could be read from the file
+  */
+-bool MidiFile::ReadSMFHeader(FILE *file, SMFHeader &header)
++bool MidiFile::ReadSMFHeader(FileHandle &file, SMFHeader &header)
+ {
+ 	/* Try to read header, fixed size */
+ 	uint8_t buffer[14];
+@@ -453,31 +452,26 @@ bool MidiFile::LoadFile(const std::string &filename)
+ 	this->tempos.clear();
+ 	this->tickdiv = 0;
+ 
+-	bool success = false;
+-	FILE *file = FioFOpenFile(filename, "rb", Subdirectory::BASESET_DIR);
+-	if (file == nullptr) return false;
++	auto file = FioFOpenFile(filename, "rb", Subdirectory::BASESET_DIR);
++	if (!file.has_value()) return false;
+ 
+ 	SMFHeader header;
+-	if (!ReadSMFHeader(file, header)) goto cleanup;
++	if (!ReadSMFHeader(*file, header)) return false;
+ 
+ 	/* Only format 0 (single-track) and format 1 (multi-track single-song) are accepted for now */
+-	if (header.format != 0 && header.format != 1) goto cleanup;
++	if (header.format != 0 && header.format != 1) return false;
+ 	/* Doesn't support SMPTE timecode files */
+-	if ((header.tickdiv & 0x8000) != 0) goto cleanup;
++	if ((header.tickdiv & 0x8000) != 0) return false;
+ 
+ 	this->tickdiv = header.tickdiv;
+ 
+ 	for (; header.tracks > 0; header.tracks--) {
+-		if (!ReadTrackChunk(file, *this)) {
+-			goto cleanup;
++		if (!ReadTrackChunk(*file, *this)) {
++			return false;
+ 		}
+ 	}
+ 
+-	success = FixupMidiData(*this);
+-
+-cleanup:
+-	FioFCloseFile(file);
+-	return success;
++	return FixupMidiData(*this);
+ }
+ 
+ 
+@@ -873,7 +867,7 @@ void MidiFile::MoveFrom(MidiFile &other)
+ 	other.tickdiv = 0;
+ }
+ 
+-static void WriteVariableLen(FILE *f, uint32_t value)
++static void WriteVariableLen(FileHandle &f, uint32_t value)
+ {
+ 	if (value <= 0x7F) {
+ 		uint8_t tb = value;
+@@ -906,10 +900,9 @@ static void WriteVariableLen(FILE *f, uint32_t value)
+  */
+ bool MidiFile::WriteSMF(const std::string &filename)
+ {
+-	FILE *f = FioFOpenFile(filename, "wb", Subdirectory::NO_DIRECTORY);
+-	if (!f) {
+-		return false;
+-	}
++	auto of = FioFOpenFile(filename, "wb", Subdirectory::NO_DIRECTORY);
++	if (!of.has_value()) return false;
++	auto &f = *of;
+ 
+ 	/* SMF header */
+ 	const uint8_t fileheader[] = {
+@@ -1007,7 +1000,6 @@ bool MidiFile::WriteSMF(const std::string &filename)
+ 			}
+ 
+ 			/* Fail for any other commands */
+-			fclose(f);
+ 			return false;
+ 		}
+ 	}
+@@ -1023,7 +1015,6 @@ bool MidiFile::WriteSMF(const std::string &filename)
+ 	tracksize = TO_BE32(tracksize);
+ 	fwrite(&tracksize, 4, 1, f);
+ 
+-	fclose(f);
+ 	return true;
+ }
+ 
+diff --git a/src/music/midifile.hpp b/src/music/midifile.hpp
+index 5d13861552228..aed05b4feb526 100644
+--- a/src/music/midifile.hpp
++++ b/src/music/midifile.hpp
+@@ -11,6 +11,7 @@
+ #define MUSIC_MIDIFILE_HPP
+ 
+ #include "../stdafx.h"
++#include "../fileio_type.h"
+ #include "midi.h"
+ 
+ struct MusicSongInfo;
+@@ -44,7 +45,7 @@ struct MidiFile {
+ 
+ 	static std::string GetSMFFile(const MusicSongInfo &song);
+ 	static bool ReadSMFHeader(const std::string &filename, SMFHeader &header);
+-	static bool ReadSMFHeader(FILE *file, SMFHeader &header);
++	static bool ReadSMFHeader(FileHandle &file, SMFHeader &header);
+ };
+ 
+ #endif /* MUSIC_MIDIFILE_HPP */
+diff --git a/src/network/network.cpp b/src/network/network.cpp
+index c0c13efb1de87..c5e29878c5f55 100644
+--- a/src/network/network.cpp
++++ b/src/network/network.cpp
+@@ -1111,18 +1111,18 @@ void NetworkGameLoop()
+ 
+ #ifdef DEBUG_DUMP_COMMANDS
+ 		/* Loading of the debug commands from -ddesync>=1 */
+-		static FILE *f = FioFOpenFile("commands.log", "rb", SAVE_DIR);
++		static auto f = FioFOpenFile("commands.log", "rb", SAVE_DIR);
+ 		static TimerGameEconomy::Date next_date(0);
+ 		static uint32_t next_date_fract;
+ 		static CommandPacket *cp = nullptr;
+ 		static bool check_sync_state = false;
+ 		static uint32_t sync_state[2];
+-		if (f == nullptr && next_date == 0) {
++		if (!f.has_value() && next_date == 0) {
+ 			Debug(desync, 0, "Cannot open commands.log");
+ 			next_date = TimerGameEconomy::Date(1);
+ 		}
+ 
+-		while (f != nullptr && !feof(f)) {
++		while (f.has_value() && !feof(*f)) {
+ 			if (TimerGameEconomy::date == next_date && TimerGameEconomy::date_fract == next_date_fract) {
+ 				if (cp != nullptr) {
+ 					NetworkSendCommand(cp->cmd, cp->err_msg, nullptr, cp->company, cp->data);
+@@ -1155,7 +1155,7 @@ void NetworkGameLoop()
+ 			if (cp != nullptr || check_sync_state) break;
+ 
+ 			char buff[4096];
+-			if (fgets(buff, lengthof(buff), f) == nullptr) break;
++			if (fgets(buff, lengthof(buff), *f) == nullptr) break;
+ 
+ 			char *p = buff;
+ 			/* Ignore the "[date time] " part of the message */
+@@ -1224,10 +1224,9 @@ void NetworkGameLoop()
+ 				NOT_REACHED();
+ 			}
+ 		}
+-		if (f != nullptr && feof(f)) {
++		if (f.has_value() && feof(*f)) {
+ 			Debug(desync, 0, "End of commands.log");
+-			fclose(f);
+-			f = nullptr;
++			f.reset();
+ 		}
+ #endif /* DEBUG_DUMP_COMMANDS */
+ 		if (_frame_counter >= _frame_counter_max) {
+diff --git a/src/network/network_content.cpp b/src/network/network_content.cpp
+index 66926d26d89c5..e7fd20536f4fa 100644
+--- a/src/network/network_content.cpp
++++ b/src/network/network_content.cpp
+@@ -404,16 +404,16 @@ static bool GunzipFile(const ContentInfo *ci)
+ 	bool ret = true;
+ 
+ 	/* Need to open the file with fopen() to support non-ASCII on Windows. */
+-	FILE *ftmp = fopen(GetFullFilename(ci, true).c_str(), "rb");
+-	if (ftmp == nullptr) return false;
++	auto ftmp = FileHandle::Open(GetFullFilename(ci, true), "rb");
++	if (!ftmp.has_value()) return false;
+ 	/* Duplicate the handle, and close the FILE*, to avoid double-closing the handle later. */
+-	int fdup = dup(fileno(ftmp));
++	int fdup = dup(fileno(*ftmp));
+ 	gzFile fin = gzdopen(fdup, "rb");
+-	fclose(ftmp);
++	ftmp.reset();
+ 
+-	FILE *fout = fopen(GetFullFilename(ci, false).c_str(), "wb");
++	auto fout = FileHandle::Open(GetFullFilename(ci, false), "wb");
+ 
+-	if (fin == nullptr || fout == nullptr) {
++	if (fin == nullptr || !fout.has_value()) {
+ 		ret = false;
+ 	} else {
+ 		uint8_t buff[8192];
+@@ -437,7 +437,7 @@ static bool GunzipFile(const ContentInfo *ci)
+ 				if (errnum != 0 && errnum != Z_STREAM_END) ret = false;
+ 				break;
+ 			}
+-			if (read < 0 || static_cast<size_t>(read) != fwrite(buff, 1, read, fout)) {
++			if (read < 0 || static_cast<size_t>(read) != fwrite(buff, 1, read, *fout)) {
+ 				/* If gzread() returns -1, there was an error in archive */
+ 				ret = false;
+ 				break;
+@@ -453,7 +453,6 @@ static bool GunzipFile(const ContentInfo *ci)
+ 		/* Failing gzdopen does not close the passed file descriptor. */
+ 		close(fdup);
+ 	}
+-	if (fout != nullptr) fclose(fout);
+ 
+ 	return ret;
+ #else
+@@ -468,14 +467,14 @@ static bool GunzipFile(const ContentInfo *ci)
+  * @param amount The number of bytes to write.
+  * @return The number of bytes that were written.
+  */
+-static inline ssize_t TransferOutFWrite(FILE *file, const char *buffer, size_t amount)
++static inline ssize_t TransferOutFWrite(std::optional<FileHandle> &file, const char *buffer, size_t amount)
+ {
+-	return fwrite(buffer, 1, amount, file);
++	return fwrite(buffer, 1, amount, *file);
+ }
+ 
+ bool ClientNetworkContentSocketHandler::Receive_SERVER_CONTENT(Packet &p)
+ {
+-	if (this->curFile == nullptr) {
++	if (!this->curFile.has_value()) {
+ 		delete this->curInfo;
+ 		/* When we haven't opened a file this must be our first packet with metadata. */
+ 		this->curInfo = new ContentInfo;
+@@ -491,12 +490,11 @@ bool ClientNetworkContentSocketHandler::Receive_SERVER_CONTENT(Packet &p)
+ 	} else {
+ 		/* We have a file opened, thus are downloading internal content */
+ 		size_t toRead = p.RemainingBytesToTransfer();
+-		if (toRead != 0 && static_cast<size_t>(p.TransferOut(TransferOutFWrite, this->curFile)) != toRead) {
++		if (toRead != 0 && static_cast<size_t>(p.TransferOut(TransferOutFWrite, std::ref(this->curFile))) != toRead) {
+ 			CloseWindowById(WC_NETWORK_STATUS_WINDOW, WN_NETWORK_STATUS_WINDOW_CONTENT_DOWNLOAD);
+ 			ShowErrorMessage(STR_CONTENT_ERROR_COULD_NOT_DOWNLOAD, STR_CONTENT_ERROR_COULD_NOT_DOWNLOAD_FILE_NOT_WRITABLE, WL_ERROR);
+ 			this->CloseConnection();
+-			fclose(this->curFile);
+-			this->curFile = nullptr;
++			this->curFile.reset();
+ 
+ 			return false;
+ 		}
+@@ -524,7 +522,7 @@ bool ClientNetworkContentSocketHandler::BeforeDownload()
+ 	if (this->curInfo->filesize != 0) {
+ 		/* The filesize is > 0, so we are going to download it */
+ 		std::string filename = GetFullFilename(this->curInfo, true);
+-		if (filename.empty() || (this->curFile = fopen(filename.c_str(), "wb")) == nullptr) {
++		if (filename.empty() || !(this->curFile = FileHandle::Open(filename, "wb"))) {
+ 			/* Unless that fails of course... */
+ 			CloseWindowById(WC_NETWORK_STATUS_WINDOW, WN_NETWORK_STATUS_WINDOW_CONTENT_DOWNLOAD);
+ 			ShowErrorMessage(STR_CONTENT_ERROR_COULD_NOT_DOWNLOAD, STR_CONTENT_ERROR_COULD_NOT_DOWNLOAD_FILE_NOT_WRITABLE, WL_ERROR);
+@@ -542,8 +540,7 @@ void ClientNetworkContentSocketHandler::AfterDownload()
+ {
+ 	/* We read nothing; that's our marker for end-of-stream.
+ 	 * Now gunzip the tar and make it known. */
+-	fclose(this->curFile);
+-	this->curFile = nullptr;
++	this->curFile.reset();
+ 
+ 	if (GunzipFile(this->curInfo)) {
+ 		FioRemove(GetFullFilename(this->curInfo, true));
+@@ -583,11 +580,10 @@ void ClientNetworkContentSocketHandler::OnFailure()
+ 	this->http_response.shrink_to_fit();
+ 	this->http_response_index = -2;
+ 
+-	if (this->curFile != nullptr) {
++	if (this->curFile.has_value()) {
+ 		this->OnDownloadProgress(this->curInfo, -1);
+ 
+-		fclose(this->curFile);
+-		this->curFile = nullptr;
++		this->curFile.reset();
+ 	}
+ 
+ 	/* If we fail, download the rest via the 'old' system. */
+@@ -623,7 +619,7 @@ void ClientNetworkContentSocketHandler::OnReceiveData(std::unique_ptr<char[]> da
+ 
+ 	if (data != nullptr) {
+ 		/* We have data, so write it to the file. */
+-		if (fwrite(data.get(), 1, length, this->curFile) != length) {
++		if (fwrite(data.get(), 1, length, *this->curFile) != length) {
+ 			/* Writing failed somehow, let try via the old method. */
+ 			this->OnFailure();
+ 		} else {
+@@ -635,7 +631,7 @@ void ClientNetworkContentSocketHandler::OnReceiveData(std::unique_ptr<char[]> da
+ 		return;
+ 	}
+ 
+-	if (this->curFile != nullptr) {
++	if (this->curFile.has_value()) {
+ 		/* We've finished downloading a file. */
+ 		this->AfterDownload();
+ 	}
+@@ -732,7 +728,7 @@ void ClientNetworkContentSocketHandler::OnReceiveData(std::unique_ptr<char[]> da
+ ClientNetworkContentSocketHandler::ClientNetworkContentSocketHandler() :
+ 	NetworkContentSocketHandler(),
+ 	http_response_index(-2),
+-	curFile(nullptr),
++	curFile(std::nullopt),
+ 	curInfo(nullptr),
+ 	isConnecting(false),
+ 	isCancelled(false)
+@@ -744,7 +740,6 @@ ClientNetworkContentSocketHandler::ClientNetworkContentSocketHandler() :
+ ClientNetworkContentSocketHandler::~ClientNetworkContentSocketHandler()
+ {
+ 	delete this->curInfo;
+-	if (this->curFile != nullptr) fclose(this->curFile);
+ 
+ 	for (ContentInfo *ci : this->infos) delete ci;
+ }
+diff --git a/src/network/network_content.h b/src/network/network_content.h
+index 741148ddf3ba4..edfa0783c6ea8 100644
+--- a/src/network/network_content.h
++++ b/src/network/network_content.h
+@@ -74,7 +74,7 @@ class ClientNetworkContentSocketHandler : public NetworkContentSocketHandler, Co
+ 	std::vector<char> http_response;              ///< The HTTP response to the requests we've been doing
+ 	int http_response_index;                      ///< Where we are, in the response, with handling it
+ 
+-	FILE *curFile;        ///< Currently downloaded file
++	std::optional<FileHandle> curFile; ///< Currently downloaded file
+ 	ContentInfo *curInfo; ///< Information about the currently downloaded file
+ 	bool isConnecting;    ///< Whether we're connecting
+ 	bool isCancelled;     ///< Whether the download has been cancelled
+diff --git a/src/newgrf_config.cpp b/src/newgrf_config.cpp
+index 8e249d58bf643..05837cad16a4d 100644
+--- a/src/newgrf_config.cpp
++++ b/src/newgrf_config.cpp
+@@ -252,7 +252,7 @@ void UpdateNewGRFConfigPalette(int32_t)
+  * @param f GRF.
+  * @return Size of the data section or SIZE_MAX if the file has no separate data section.
+  */
+-size_t GRFGetSizeOfDataSection(FILE *f)
++size_t GRFGetSizeOfDataSection(FileHandle &f)
+ {
+ 	extern const uint8_t _grf_cont_v2_sig[];
+ 	static const uint header_len = 14;
+@@ -284,32 +284,28 @@ size_t GRFGetSizeOfDataSection(FILE *f)
+  */
+ static bool CalcGRFMD5Sum(GRFConfig *config, Subdirectory subdir)
+ {
+-	FILE *f;
+ 	Md5 checksum;
+ 	uint8_t buffer[1024];
+ 	size_t len, size;
+ 
+ 	/* open the file */
+-	f = FioFOpenFile(config->filename, "rb", subdir, &size);
+-	if (f == nullptr) return false;
++	auto f = FioFOpenFile(config->filename, "rb", subdir, &size);
++	if (!f.has_value()) return false;
+ 
+-	long start = ftell(f);
+-	size = std::min(size, GRFGetSizeOfDataSection(f));
++	long start = ftell(*f);
++	size = std::min(size, GRFGetSizeOfDataSection(*f));
+ 
+-	if (start < 0 || fseek(f, start, SEEK_SET) < 0) {
+-		FioFCloseFile(f);
++	if (start < 0 || fseek(*f, start, SEEK_SET) < 0) {
+ 		return false;
+ 	}
+ 
+ 	/* calculate md5sum */
+-	while ((len = fread(buffer, 1, (size > sizeof(buffer)) ? sizeof(buffer) : size, f)) != 0 && size != 0) {
++	while ((len = fread(buffer, 1, (size > sizeof(buffer)) ? sizeof(buffer) : size, *f)) != 0 && size != 0) {
+ 		size -= len;
+ 		checksum.Append(buffer, len);
+ 	}
+ 	checksum.Finish(config->ident.md5sum);
+ 
+-	FioFCloseFile(f);
+-
+ 	return true;
+ }
+ 
+diff --git a/src/newgrf_config.h b/src/newgrf_config.h
+index f5d3233cea50b..b664bb8cb100c 100644
+--- a/src/newgrf_config.h
++++ b/src/newgrf_config.h
+@@ -210,7 +210,7 @@ struct NewGRFScanCallback {
+ 	virtual void OnNewGRFsScanned() = 0;
+ };
+ 
+-size_t GRFGetSizeOfDataSection(FILE *f);
++size_t GRFGetSizeOfDataSection(FileHandle &f);
+ 
+ void ScanNewGRFFiles(NewGRFScanCallback *callback);
+ const GRFConfig *FindGRFConfig(uint32_t grfid, FindGRFConfigMode mode, const MD5Hash *md5sum = nullptr, uint32_t desired_version = 0);
+diff --git a/src/newgrf_profiling.cpp b/src/newgrf_profiling.cpp
+index 48ed9cdab0653..0b1464a1d02b3 100644
+--- a/src/newgrf_profiling.cpp
++++ b/src/newgrf_profiling.cpp
+@@ -104,15 +104,18 @@ uint32_t NewGRFProfiler::Finish()
+ 	std::string filename = this->GetOutputFilename();
+ 	IConsolePrint(CC_DEBUG, "Finished profile of NewGRF [{:08X}], writing {} events to '{}'.", BSWAP32(this->grffile->grfid), this->calls.size(), filename);
+ 
+-	FILE *f = FioFOpenFile(filename, "wt", Subdirectory::NO_DIRECTORY);
+-	FileCloser fcloser(f);
+-
+ 	uint32_t total_microseconds = 0;
+ 
+-	fmt::print(f, "Tick,Sprite,Feature,Item,CallbackID,Microseconds,Depth,Result\n");
+-	for (const Call &c : this->calls) {
+-		fmt::print(f, "{},{},{:#X},{},{:#X},{},{},{}\n", c.tick, c.root_sprite, c.feat, c.item, (uint)c.cb, c.time, c.subs, c.result);
+-		total_microseconds += c.time;
++	auto f = FioFOpenFile(filename, "wt", Subdirectory::NO_DIRECTORY);
++
++	if (!f.has_value()) {
++		IConsolePrint(CC_ERROR, "Failed to open '{}' for writing.", filename);
++	} else {
++		fmt::print(*f, "Tick,Sprite,Feature,Item,CallbackID,Microseconds,Depth,Result\n");
++		for (const Call &c : this->calls) {
++			fmt::print(*f, "{},{},{:#X},{},{:#X},{},{},{}\n", c.tick, c.root_sprite, c.feat, c.item, (uint)c.cb, c.time, c.subs, c.result);
++			total_microseconds += c.time;
++		}
+ 	}
+ 
+ 	this->Abort();
+diff --git a/src/pathfinder/yapf/yapf_rail.cpp b/src/pathfinder/yapf/yapf_rail.cpp
+index 95800867991dc..760634da23055 100644
+--- a/src/pathfinder/yapf/yapf_rail.cpp
++++ b/src/pathfinder/yapf/yapf_rail.cpp
+@@ -24,14 +24,12 @@ template <typename Tpf> void DumpState(Tpf &pf1, Tpf &pf2)
+ 	DumpTarget dmp1, dmp2;
+ 	pf1.DumpBase(dmp1);
+ 	pf2.DumpBase(dmp2);
+-	FILE *f1 = fopen("yapf1.txt", "wt");
+-	FILE *f2 = fopen("yapf2.txt", "wt");
+-	assert(f1 != nullptr);
+-	assert(f2 != nullptr);
+-	fwrite(dmp1.m_out.c_str(), 1, dmp1.m_out.size(), f1);
+-	fwrite(dmp2.m_out.c_str(), 1, dmp2.m_out.size(), f2);
+-	fclose(f1);
+-	fclose(f2);
++	auto f1 = FileHandle::Open("yapf1.txt", "wt");
++	auto f2 = FileHandle::Open("yapf2.txt", "wt");
++	assert(f1.has_value());
++	assert(f2.has_value());
++	fwrite(dmp1.m_out.c_str(), 1, dmp1.m_out.size(), *f1);
++	fwrite(dmp2.m_out.c_str(), 1, dmp2.m_out.size(), *f2);
+ }
+ 
+ template <class Types>
+diff --git a/src/random_access_file.cpp b/src/random_access_file.cpp
+index 29764521ed28e..ec13c995e4343 100644
+--- a/src/random_access_file.cpp
++++ b/src/random_access_file.cpp
+@@ -25,10 +25,10 @@
+ RandomAccessFile::RandomAccessFile(const std::string &filename, Subdirectory subdir) : filename(filename)
+ {
+ 	this->file_handle = FioFOpenFile(filename, "rb", subdir);
+-	if (this->file_handle == nullptr) UserError("Cannot open file '{}'", filename);
++	if (!this->file_handle.has_value()) UserError("Cannot open file '{}'", filename);
+ 
+ 	/* When files are in a tar-file, the begin of the file might not be at 0. */
+-	long pos = ftell(this->file_handle);
++	long pos = ftell(*this->file_handle);
+ 	if (pos < 0) UserError("Cannot read file '{}'", filename);
+ 
+ 	/* Store the filename without path and extension */
+@@ -40,14 +40,6 @@ RandomAccessFile::RandomAccessFile(const std::string &filename, Subdirectory sub
+ 	this->SeekTo(static_cast<size_t>(pos), SEEK_SET);
+ }
+ 
+-/**
+- * Close the file's file handle.
+- */
+-RandomAccessFile::~RandomAccessFile()
+-{
+-	fclose(this->file_handle);
+-}
+-
+ /**
+  * Get the filename of the opened file with the path from the SubDirectory and the extension.
+  * @return Name of the file.
+@@ -86,7 +78,7 @@ void RandomAccessFile::SeekTo(size_t pos, int mode)
+ 	if (mode == SEEK_CUR) pos += this->GetPos();
+ 
+ 	this->pos = pos;
+-	if (fseek(this->file_handle, this->pos, SEEK_SET) < 0) {
++	if (fseek(*this->file_handle, this->pos, SEEK_SET) < 0) {
+ 		Debug(misc, 0, "Seeking in {} failed", this->filename);
+ 	}
+ 
+@@ -102,7 +94,7 @@ uint8_t RandomAccessFile::ReadByte()
+ {
+ 	if (this->buffer == this->buffer_end) {
+ 		this->buffer = this->buffer_start;
+-		size_t size = fread(this->buffer, 1, RandomAccessFile::BUFFER_SIZE, this->file_handle);
++		size_t size = fread(this->buffer, 1, RandomAccessFile::BUFFER_SIZE, *this->file_handle);
+ 		this->pos += size;
+ 		this->buffer_end = this->buffer_start + size;
+ 
+@@ -139,7 +131,7 @@ uint32_t RandomAccessFile::ReadDword()
+ void RandomAccessFile::ReadBlock(void *ptr, size_t size)
+ {
+ 	this->SeekTo(this->GetPos(), SEEK_SET);
+-	this->pos += fread(ptr, 1, size, this->file_handle);
++	this->pos += fread(ptr, 1, size, *this->file_handle);
+ }
+ 
+ /**
+diff --git a/src/random_access_file_type.h b/src/random_access_file_type.h
+index 38b414824754d..5a6cfb3b0a6a5 100644
+--- a/src/random_access_file_type.h
++++ b/src/random_access_file_type.h
+@@ -26,7 +26,7 @@ class RandomAccessFile {
+ 	std::string filename;            ///< Full name of the file; relative path to subdir plus the extension of the file.
+ 	std::string simplified_filename; ///< Simplified lowecase name of the file; only the name, no path or extension.
+ 
+-	FILE *file_handle;               ///< File handle of the open file.
++	std::optional<FileHandle> file_handle; ///< File handle of the open file.
+ 	size_t pos;                      ///< Position in the file of the end of the read buffer.
+ 
+ 	uint8_t *buffer;                    ///< Current position within the local buffer.
+@@ -38,7 +38,7 @@ class RandomAccessFile {
+ 	RandomAccessFile(const RandomAccessFile&) = delete;
+ 	void operator=(const RandomAccessFile&) = delete;
+ 
+-	virtual ~RandomAccessFile();
++	virtual ~RandomAccessFile() {}
+ 
+ 	const std::string &GetFilename() const;
+ 	const std::string &GetSimplifiedFilename() const;
+diff --git a/src/saveload/oldloader.cpp b/src/saveload/oldloader.cpp
+index 2150c9b90205e..99a6fce0f0d48 100644
+--- a/src/saveload/oldloader.cpp
++++ b/src/saveload/oldloader.cpp
+@@ -65,7 +65,7 @@ static uint8_t ReadByteFromFile(LoadgameState *ls)
+ 	if (ls->buffer_cur >= ls->buffer_count) {
+ 
+ 		/* Read some new bytes from the file */
+-		int count = (int)fread(ls->buffer, 1, BUFFER_SIZE, ls->file);
++		int count = static_cast<int>(fread(ls->buffer, 1, BUFFER_SIZE, *ls->file));
+ 
+ 		/* We tried to read, but there is nothing in the file anymore.. */
+ 		if (count == 0) {
+@@ -235,7 +235,7 @@ static bool VerifyOldNameChecksum(char *title, uint len)
+ 	return sum == sum2;
+ }
+ 
+-static std::tuple<SavegameType, std::string> DetermineOldSavegameTypeAndName(FILE *f)
++static std::tuple<SavegameType, std::string> DetermineOldSavegameTypeAndName(FileHandle &f)
+ {
+ 	long pos = ftell(f);
+ 	char buffer[std::max(TTO_HEADER_SIZE, TTD_HEADER_SIZE)];
+@@ -267,13 +267,13 @@ bool LoadOldSaveGame(const std::string &file)
+ 	/* Open file */
+ 	ls.file = FioFOpenFile(file, "rb", NO_DIRECTORY);
+ 
+-	if (ls.file == nullptr) {
++	if (!ls.file.has_value()) {
+ 		Debug(oldloader, 0, "Cannot open file '{}'", file);
+ 		return false;
+ 	}
+ 
+ 	SavegameType type;
+-	std::tie(type, std::ignore) = DetermineOldSavegameTypeAndName(ls.file);
++	std::tie(type, std::ignore) = DetermineOldSavegameTypeAndName(*ls.file);
+ 
+ 	LoadOldMainProc *proc = nullptr;
+ 
+@@ -296,7 +296,7 @@ bool LoadOldSaveGame(const std::string &file)
+ 
+ 	if (!game_loaded) {
+ 		SetSaveLoadError(STR_GAME_SAVELOAD_ERROR_DATA_INTEGRITY_CHECK_FAILED);
+-		fclose(ls.file);
++		ls.file.reset();
+ 		return false;
+ 	}
+ 
+@@ -307,11 +307,10 @@ bool LoadOldSaveGame(const std::string &file)
+ 
+ std::string GetOldSaveGameName(const std::string &file)
+ {
+-	FILE *f = FioFOpenFile(file, "rb", NO_DIRECTORY);
+-	if (f == nullptr) return {};
++	auto f = FioFOpenFile(file, "rb", NO_DIRECTORY);
++	if (!f.has_value()) return {};
+ 
+ 	std::string name;
+-	std::tie(std::ignore, name) = DetermineOldSavegameTypeAndName(f);
+-	fclose(f);
++	std::tie(std::ignore, name) = DetermineOldSavegameTypeAndName(*f);
+ 	return name;
+ }
+diff --git a/src/saveload/oldloader.h b/src/saveload/oldloader.h
+index fe4a6812c42ae..a7b1ac988f0f6 100644
+--- a/src/saveload/oldloader.h
++++ b/src/saveload/oldloader.h
+@@ -17,7 +17,7 @@ static const uint BUFFER_SIZE = 4096;
+ static const uint OLD_MAP_SIZE = 256;
+ 
+ struct LoadgameState {
+-	FILE *file;
++	std::optional<FileHandle> file;
+ 
+ 	uint chunk_size;
+ 
+diff --git a/src/saveload/saveload.cpp b/src/saveload/saveload.cpp
+index ded1a83467531..e205fa6416d3f 100644
+--- a/src/saveload/saveload.cpp
++++ b/src/saveload/saveload.cpp
+@@ -2193,39 +2193,37 @@ static void SlFixPointers()
+ 
+ /** Yes, simply reading from a file. */
+ struct FileReader : LoadFilter {
+-	FILE *file; ///< The file to read from.
++	std::optional<FileHandle> file; ///< The file to read from.
+ 	long begin; ///< The begin of the file.
+ 
+ 	/**
+ 	 * Create the file reader, so it reads from a specific file.
+ 	 * @param file The file to read from.
+ 	 */
+-	FileReader(FILE *file) : LoadFilter(nullptr), file(file), begin(ftell(file))
++	FileReader(FileHandle &&file) : LoadFilter(nullptr), file(std::move(file)), begin(ftell(*this->file))
+ 	{
+ 	}
+ 
+ 	/** Make sure everything is cleaned up. */
+ 	~FileReader()
+ 	{
+-		if (this->file != nullptr) {
+-			_game_session_stats.savegame_size = ftell(this->file) - this->begin;
+-			fclose(this->file);
++		if (this->file.has_value()) {
++			_game_session_stats.savegame_size = ftell(*this->file) - this->begin;
+ 		}
+-		this->file = nullptr;
+ 	}
+ 
+ 	size_t Read(uint8_t *buf, size_t size) override
+ 	{
+ 		/* We're in the process of shutting down, i.e. in "failure" mode. */
+-		if (this->file == nullptr) return 0;
++		if (!this->file.has_value()) return 0;
+ 
+-		return fread(buf, 1, size, this->file);
++		return fread(buf, 1, size, *this->file);
+ 	}
+ 
+ 	void Reset() override
+ 	{
+-		clearerr(this->file);
+-		if (fseek(this->file, this->begin, SEEK_SET)) {
++		clearerr(*this->file);
++		if (fseek(*this->file, this->begin, SEEK_SET)) {
+ 			Debug(sl, 1, "Could not reset the file reading");
+ 		}
+ 	}
+@@ -2233,13 +2231,13 @@ struct FileReader : LoadFilter {
+ 
+ /** Yes, simply writing to a file. */
+ struct FileWriter : SaveFilter {
+-	FILE *file; ///< The file to write to.
++	std::optional<FileHandle> file; ///< The file to write to.
+ 
+ 	/**
+ 	 * Create the file writer, so it writes to a specific file.
+ 	 * @param file The file to write to.
+ 	 */
+-	FileWriter(FILE *file) : SaveFilter(nullptr), file(file)
++	FileWriter(FileHandle &&file) : SaveFilter(nullptr), file(std::move(file))
+ 	{
+ 	}
+ 
+@@ -2252,18 +2250,17 @@ struct FileWriter : SaveFilter {
+ 	void Write(uint8_t *buf, size_t size) override
+ 	{
+ 		/* We're in the process of shutting down, i.e. in "failure" mode. */
+-		if (this->file == nullptr) return;
++		if (this->file.has_value()) return;
+ 
+-		if (fwrite(buf, 1, size, this->file) != size) SlError(STR_GAME_SAVELOAD_ERROR_FILE_NOT_WRITEABLE);
++		if (fwrite(buf, 1, size, *this->file) != size) SlError(STR_GAME_SAVELOAD_ERROR_FILE_NOT_WRITEABLE);
+ 	}
+ 
+ 	void Finish() override
+ 	{
+-		if (this->file != nullptr) {
+-			_game_session_stats.savegame_size = ftell(this->file);
+-			fclose(this->file);
++		if (this->file.has_value()) {
++			_game_session_stats.savegame_size = ftell(*this->file);
++			this->file.reset();
+ 		}
+-		this->file = nullptr;
+ 	}
+ };
+ 
+@@ -3136,14 +3133,14 @@ SaveOrLoadResult SaveOrLoad(const std::string &filename, SaveLoadOperation fop,
+ 			default: NOT_REACHED();
+ 		}
+ 
+-		FILE *fh = (fop == SLO_SAVE) ? FioFOpenFile(filename, "wb", sb) : FioFOpenFile(filename, "rb", sb);
++		auto fh = (fop == SLO_SAVE) ? FioFOpenFile(filename, "wb", sb) : FioFOpenFile(filename, "rb", sb);
+ 
+ 		/* Make it a little easier to load savegames from the console */
+-		if (fh == nullptr && fop != SLO_SAVE) fh = FioFOpenFile(filename, "rb", SAVE_DIR);
+-		if (fh == nullptr && fop != SLO_SAVE) fh = FioFOpenFile(filename, "rb", BASE_DIR);
+-		if (fh == nullptr && fop != SLO_SAVE) fh = FioFOpenFile(filename, "rb", SCENARIO_DIR);
++		if (!fh.has_value() && fop != SLO_SAVE) fh = FioFOpenFile(filename, "rb", SAVE_DIR);
++		if (!fh.has_value() && fop != SLO_SAVE) fh = FioFOpenFile(filename, "rb", BASE_DIR);
++		if (!fh.has_value() && fop != SLO_SAVE) fh = FioFOpenFile(filename, "rb", SCENARIO_DIR);
+ 
+-		if (fh == nullptr) {
++		if (!fh.has_value()) {
+ 			SlError(fop == SLO_SAVE ? STR_GAME_SAVELOAD_ERROR_FILE_NOT_WRITEABLE : STR_GAME_SAVELOAD_ERROR_FILE_NOT_READABLE);
+ 		}
+ 
+@@ -3151,13 +3148,13 @@ SaveOrLoadResult SaveOrLoad(const std::string &filename, SaveLoadOperation fop,
+ 			Debug(desync, 1, "save: {:08x}; {:02x}; {}", TimerGameEconomy::date, TimerGameEconomy::date_fract, filename);
+ 			if (!_settings_client.gui.threaded_saves) threaded = false;
+ 
+-			return DoSave(std::make_shared<FileWriter>(fh), threaded);
++			return DoSave(std::make_shared<FileWriter>(std::move(*fh)), threaded);
+ 		}
+ 
+ 		/* LOAD game */
+ 		assert(fop == SLO_LOAD || fop == SLO_CHECK);
+ 		Debug(desync, 1, "load: {}", filename);
+-		return DoLoad(std::make_shared<FileReader>(fh), fop == SLO_CHECK);
++		return DoLoad(std::make_shared<FileReader>(std::move(*fh)), fop == SLO_CHECK);
+ 	} catch (...) {
+ 		/* This code may be executed both for old and new save games. */
+ 		ClearSaveLoadState();
+diff --git a/src/screenshot.cpp b/src/screenshot.cpp
+index 0f54a89cae222..5bb7521e923bd 100644
+--- a/src/screenshot.cpp
++++ b/src/screenshot.cpp
+@@ -124,8 +124,9 @@ static bool MakeBMPImage(const char *name, ScreenshotCallback *callb, void *user
+ 		default: return false;
+ 	}
+ 
+-	FILE *f = fopen(name, "wb");
+-	if (f == nullptr) return false;
++	auto of = FileHandle::Open(name, "wb");
++	if (!of.has_value()) return false;
++	auto &f = *of;
+ 
+ 	/* Each scanline must be aligned on a 32bit boundary */
+ 	uint bytewidth = Align(w * bpp, 4); // bytes per line in file
+@@ -156,7 +157,6 @@ static bool MakeBMPImage(const char *name, ScreenshotCallback *callb, void *user
+ 
+ 	/* Write file header and info header */
+ 	if (fwrite(&bfh, sizeof(bfh), 1, f) != 1 || fwrite(&bih, sizeof(bih), 1, f) != 1) {
+-		fclose(f);
+ 		return false;
+ 	}
+ 
+@@ -171,7 +171,6 @@ static bool MakeBMPImage(const char *name, ScreenshotCallback *callb, void *user
+ 		}
+ 		/* Write the palette */
+ 		if (fwrite(rq, sizeof(rq), 1, f) != 1) {
+-			fclose(f);
+ 			return false;
+ 		}
+ 	}
+@@ -210,7 +209,6 @@ static bool MakeBMPImage(const char *name, ScreenshotCallback *callb, void *user
+ 			if (fwrite(line, bytewidth, 1, f) != 1) {
+ 				free(line);
+ 				free(buff);
+-				fclose(f);
+ 				return false;
+ 			}
+ 		}
+@@ -218,7 +216,6 @@ static bool MakeBMPImage(const char *name, ScreenshotCallback *callb, void *user
+ 
+ 	free(line);
+ 	free(buff);
+-	fclose(f);
+ 
+ 	return true;
+ }
+@@ -263,7 +260,6 @@ static void PNGAPI png_my_warning(png_structp png_ptr, png_const_charp message)
+ static bool MakePNGImage(const char *name, ScreenshotCallback *callb, void *userdata, uint w, uint h, int pixelformat, const Colour *palette)
+ {
+ 	png_color rq[256];
+-	FILE *f;
+ 	uint i, y, n;
+ 	uint maxlines;
+ 	uint bpp = pixelformat / 8;
+@@ -273,26 +269,24 @@ static bool MakePNGImage(const char *name, ScreenshotCallback *callb, void *user
+ 	/* only implemented for 8bit and 32bit images so far. */
+ 	if (pixelformat != 8 && pixelformat != 32) return false;
+ 
+-	f = fopen(name, "wb");
+-	if (f == nullptr) return false;
++	auto of = FileHandle::Open(name, "wb");
++	if (!of.has_value()) return false;
++	auto &f = *of;
+ 
+ 	png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, const_cast<char *>(name), png_my_error, png_my_warning);
+ 
+ 	if (png_ptr == nullptr) {
+-		fclose(f);
+ 		return false;
+ 	}
+ 
+ 	info_ptr = png_create_info_struct(png_ptr);
+ 	if (info_ptr == nullptr) {
+ 		png_destroy_write_struct(&png_ptr, (png_infopp)nullptr);
+-		fclose(f);
+ 		return false;
+ 	}
+ 
+ 	if (setjmp(png_jmpbuf(png_ptr))) {
+ 		png_destroy_write_struct(&png_ptr, &info_ptr);
+-		fclose(f);
+ 		return false;
+ 	}
+ 
+@@ -393,7 +387,6 @@ static bool MakePNGImage(const char *name, ScreenshotCallback *callb, void *user
+ 	png_destroy_write_struct(&png_ptr, &info_ptr);
+ 
+ 	free(buff);
+-	fclose(f);
+ 	return true;
+ }
+ #endif /* WITH_PNG */
+@@ -437,7 +430,6 @@ static_assert(sizeof(PcxHeader) == 128);
+  */
+ static bool MakePCXImage(const char *name, ScreenshotCallback *callb, void *userdata, uint w, uint h, int pixelformat, const Colour *palette)
+ {
+-	FILE *f;
+ 	uint maxlines;
+ 	uint y;
+ 	PcxHeader pcx;
+@@ -449,8 +441,9 @@ static bool MakePCXImage(const char *name, ScreenshotCallback *callb, void *user
+ 	}
+ 	if (pixelformat != 8 || w == 0) return false;
+ 
+-	f = fopen(name, "wb");
+-	if (f == nullptr) return false;
++	auto of = FileHandle::Open(name, "wb");
++	if (!of.has_value()) return false;
++	auto &f = *of;
+ 
+ 	memset(&pcx, 0, sizeof(pcx));
+ 
+@@ -471,7 +464,6 @@ static bool MakePCXImage(const char *name, ScreenshotCallback *callb, void *user
+ 
+ 	/* write pcx header */
+ 	if (fwrite(&pcx, sizeof(pcx), 1, f) != 1) {
+-		fclose(f);
+ 		return false;
+ 	}
+ 
+@@ -506,13 +498,11 @@ static bool MakePCXImage(const char *name, ScreenshotCallback *callb, void *user
+ 					if (runcount > 1 || (runchar & 0xC0) == 0xC0) {
+ 						if (fputc(0xC0 | runcount, f) == EOF) {
+ 							free(buff);
+-							fclose(f);
+ 							return false;
+ 						}
+ 					}
+ 					if (fputc(runchar, f) == EOF) {
+ 						free(buff);
+-						fclose(f);
+ 						return false;
+ 					}
+ 					runcount = 0;
+@@ -525,13 +515,11 @@ static bool MakePCXImage(const char *name, ScreenshotCallback *callb, void *user
+ 			if (runcount > 1 || (runchar & 0xC0) == 0xC0) {
+ 				if (fputc(0xC0 | runcount, f) == EOF) {
+ 					free(buff);
+-					fclose(f);
+ 					return false;
+ 				}
+ 			}
+ 			if (fputc(runchar, f) == EOF) {
+ 				free(buff);
+-				fclose(f);
+ 				return false;
+ 			}
+ 		}
+@@ -541,7 +529,6 @@ static bool MakePCXImage(const char *name, ScreenshotCallback *callb, void *user
+ 
+ 	/* write 8-bit colour palette */
+ 	if (fputc(12, f) == EOF) {
+-		fclose(f);
+ 		return false;
+ 	}
+ 
+@@ -555,8 +542,6 @@ static bool MakePCXImage(const char *name, ScreenshotCallback *callb, void *user
+ 	}
+ 	success = fwrite(tmp, sizeof(tmp), 1, f) == 1;
+ 
+-	fclose(f);
+-
+ 	return success;
+ }
+ 
+diff --git a/src/script/script_scanner.cpp b/src/script/script_scanner.cpp
+index ff85007ce991f..3b722ccd204e9 100644
+--- a/src/script/script_scanner.cpp
++++ b/src/script/script_scanner.cpp
+@@ -168,11 +168,11 @@ struct ScriptFileChecksumCreator : FileScanner {
+ 		size_t len, size;
+ 
+ 		/* Open the file ... */
+-		FILE *f = FioFOpenFile(filename, "rb", this->dir, &size);
+-		if (f == nullptr) return false;
++		auto f = FioFOpenFile(filename, "rb", this->dir, &size);
++		if (!f.has_value()) return false;
+ 
+ 		/* ... calculate md5sum... */
+-		while ((len = fread(buffer, 1, (size > sizeof(buffer)) ? sizeof(buffer) : size, f)) != 0 && size != 0) {
++		while ((len = fread(buffer, 1, (size > sizeof(buffer)) ? sizeof(buffer) : size, *f)) != 0 && size != 0) {
+ 			size -= len;
+ 			checksum.Append(buffer, len);
+ 		}
+@@ -180,8 +180,6 @@ struct ScriptFileChecksumCreator : FileScanner {
+ 		MD5Hash tmp_md5sum;
+ 		checksum.Finish(tmp_md5sum);
+ 
+-		FioFCloseFile(f);
+-
+ 		/* ... and xor it to the overall md5sum. */
+ 		this->md5sum ^= tmp_md5sum;
+ 
+diff --git a/src/script/squirrel.cpp b/src/script/squirrel.cpp
+index 2c767b9abbe07..df0cf44e511c5 100644
+--- a/src/script/squirrel.cpp
++++ b/src/script/squirrel.cpp
+@@ -548,12 +548,12 @@ void Squirrel::Initialize()
+ 
+ class SQFile {
+ private:
+-	FILE *file;
++	FileHandle file;
+ 	size_t size;
+ 	size_t pos;
+ 
+ public:
+-	SQFile(FILE *file, size_t size) : file(file), size(size), pos(0) {}
++	SQFile(FileHandle file, size_t size) : file(std::move(file)), size(size), pos(0) {}
+ 
+ 	size_t Read(void *buf, size_t elemsize, size_t count)
+ 	{
+@@ -622,40 +622,37 @@ SQRESULT Squirrel::LoadFile(HSQUIRRELVM vm, const std::string &filename, SQBool
+ {
+ 	ScriptAllocatorScope alloc_scope(this);
+ 
+-	FILE *file;
++	std::optional<FileHandle> file = std::nullopt;
+ 	size_t size;
+ 	if (strncmp(this->GetAPIName(), "AI", 2) == 0) {
+ 		file = FioFOpenFile(filename, "rb", AI_DIR, &size);
+-		if (file == nullptr) file = FioFOpenFile(filename, "rb", AI_LIBRARY_DIR, &size);
++		if (!file.has_value()) file = FioFOpenFile(filename, "rb", AI_LIBRARY_DIR, &size);
+ 	} else if (strncmp(this->GetAPIName(), "GS", 2) == 0) {
+ 		file = FioFOpenFile(filename, "rb", GAME_DIR, &size);
+-		if (file == nullptr) file = FioFOpenFile(filename, "rb", GAME_LIBRARY_DIR, &size);
++		if (!file.has_value()) file = FioFOpenFile(filename, "rb", GAME_LIBRARY_DIR, &size);
+ 	} else {
+ 		NOT_REACHED();
+ 	}
+ 
+-	if (file == nullptr) {
++	if (!file.has_value()) {
+ 		return sq_throwerror(vm, "cannot open the file");
+ 	}
+ 	unsigned short bom = 0;
+ 	if (size >= 2) {
+-		[[maybe_unused]] size_t sr = fread(&bom, 1, sizeof(bom), file);
++		if (fread(&bom, 1, sizeof(bom), *file) != sizeof(bom)) return sq_throwerror(vm, "cannot read the file");;
+ 	}
+ 
+ 	SQLEXREADFUNC func;
+ 	switch (bom) {
+ 		case SQ_BYTECODE_STREAM_TAG: { // BYTECODE
+-			if (fseek(file, -2, SEEK_CUR) < 0) {
+-				FioFCloseFile(file);
++			if (fseek(*file, -2, SEEK_CUR) < 0) {
+ 				return sq_throwerror(vm, "cannot seek the file");
+ 			}
+ 
+-			SQFile f(file, size);
++			SQFile f(std::move(*file), size);
+ 			if (SQ_SUCCEEDED(sq_readclosure(vm, _io_file_read, &f))) {
+-				FioFCloseFile(file);
+ 				return SQ_OK;
+ 			}
+-			FioFCloseFile(file);
+ 			return sq_throwerror(vm, "Couldn't read bytecode");
+ 		}
+ 		case 0xFFFE:
+@@ -673,12 +670,10 @@ SQRESULT Squirrel::LoadFile(HSQUIRRELVM vm, const std::string &filename, SQBool
+ 		case 0xEFBB: { // UTF-8 on big-endian machine
+ 			/* Similarly, check the file is actually big enough to finish checking BOM */
+ 			if (size < 3) {
+-				FioFCloseFile(file);
+ 				return sq_throwerror(vm, "I/O error");
+ 			}
+ 			unsigned char uc;
+-			if (fread(&uc, 1, sizeof(uc), file) != sizeof(uc) || uc != 0xBF) {
+-				FioFCloseFile(file);
++			if (fread(&uc, 1, sizeof(uc), *file) != sizeof(uc) || uc != 0xBF) {
+ 				return sq_throwerror(vm, "Unrecognized encoding");
+ 			}
+ 			func = _io_file_lexfeed_UTF8;
+@@ -688,19 +683,16 @@ SQRESULT Squirrel::LoadFile(HSQUIRRELVM vm, const std::string &filename, SQBool
+ 		default: // ASCII
+ 			func = _io_file_lexfeed_ASCII;
+ 			/* Account for when we might not have fread'd earlier */
+-			if (size >= 2 && fseek(file, -2, SEEK_CUR) < 0) {
+-				FioFCloseFile(file);
++			if (size >= 2 && fseek(*file, -2, SEEK_CUR) < 0) {
+ 				return sq_throwerror(vm, "cannot seek the file");
+ 			}
+ 			break;
+ 	}
+ 
+-	SQFile f(file, size);
++	SQFile f(std::move(*file), size);
+ 	if (SQ_SUCCEEDED(sq_compile(vm, func, &f, filename.c_str(), printerror))) {
+-		FioFCloseFile(file);
+ 		return SQ_OK;
+ 	}
+-	FioFCloseFile(file);
+ 	return SQ_ERROR;
+ }
+ 
+diff --git a/src/settingsgen/settingsgen.cpp b/src/settingsgen/settingsgen.cpp
+index c7825666712c1..30b8030acbdb2 100644
+--- a/src/settingsgen/settingsgen.cpp
++++ b/src/settingsgen/settingsgen.cpp
+@@ -154,17 +154,17 @@ struct SettingsIniFile : IniLoadFile {
+ 	{
+ 	}
+ 
+-	FILE *OpenFile(const std::string &filename, Subdirectory, size_t *size) override
++	std::optional<FileHandle> OpenFile(const std::string &filename, Subdirectory, size_t *size) override
+ 	{
+ 		/* Open the text file in binary mode to prevent end-of-line translations
+ 		 * done by ftell() and friends, as defined by K&R. */
+-		FILE *in = fopen(filename.c_str(), "rb");
+-		if (in == nullptr) return nullptr;
++		auto in = FileHandle::Open(filename, "rb");
++		if (!in.has_value()) return in;
+ 
+-		fseek(in, 0L, SEEK_END);
+-		*size = ftell(in);
++		fseek(*in, 0L, SEEK_END);
++		*size = ftell(*in);
++		fseek(*in, 0L, SEEK_SET); // Seek back to the start of the file.
+ 
+-		fseek(in, 0L, SEEK_SET); // Seek back to the start of the file.
+ 		return in;
+ 	}
+ 
+@@ -325,21 +325,19 @@ static void AppendFile(const char *fname, FILE *out_fp)
+ {
+ 	if (fname == nullptr) return;
+ 
+-	FILE *in_fp = fopen(fname, "r");
+-	if (in_fp == nullptr) {
++	auto in_fp = FileHandle::Open(fname, "r");
++	if (!in_fp.has_value()) {
+ 		FatalError("Cannot open file {} for copying", fname);
+ 	}
+ 
+ 	char buffer[4096];
+ 	size_t length;
+ 	do {
+-		length = fread(buffer, 1, lengthof(buffer), in_fp);
++		length = fread(buffer, 1, lengthof(buffer), *in_fp);
+ 		if (fwrite(buffer, 1, length, out_fp) != length) {
+ 			FatalError("Cannot copy file");
+ 		}
+ 	} while (length == lengthof(buffer));
+-
+-	fclose(in_fp);
+ }
+ 
+ /**
+@@ -350,12 +348,11 @@ static void AppendFile(const char *fname, FILE *out_fp)
+  */
+ static bool CompareFiles(const char *n1, const char *n2)
+ {
+-	FILE *f2 = fopen(n2, "rb");
+-	if (f2 == nullptr) return false;
++	auto f2 = FileHandle::Open(n2, "rb");
++	if (!f2.has_value()) return false;
+ 
+-	FILE *f1 = fopen(n1, "rb");
+-	if (f1 == nullptr) {
+-		fclose(f2);
++	auto f1 = FileHandle::Open(n1, "rb");
++	if (!f1.has_value()) {
+ 		FatalError("can't open {}", n1);
+ 	}
+ 
+@@ -363,18 +360,14 @@ static bool CompareFiles(const char *n1, const char *n2)
+ 	do {
+ 		char b1[4096];
+ 		char b2[4096];
+-		l1 = fread(b1, 1, sizeof(b1), f1);
+-		l2 = fread(b2, 1, sizeof(b2), f2);
++		l1 = fread(b1, 1, sizeof(b1), *f1);
++		l2 = fread(b2, 1, sizeof(b2), *f2);
+ 
+ 		if (l1 != l2 || memcmp(b1, b2, l1) != 0) {
+-			fclose(f2);
+-			fclose(f1);
+ 			return false;
+ 		}
+ 	} while (l1 != 0);
+ 
+-	fclose(f2);
+-	fclose(f1);
+ 	return true;
+ }
+ 
+@@ -478,15 +471,15 @@ int CDECL main(int argc, char *argv[])
+ 	} else {
+ 		static const char * const tmp_output = "tmp2.xxx";
+ 
+-		FILE *fp = fopen(tmp_output, "w");
+-		if (fp == nullptr) {
++		auto fp = FileHandle::Open(tmp_output, "w");
++		if (!fp.has_value()) {
+ 			FatalError("Cannot open file {}", tmp_output);
+ 		}
+-		AppendFile(before_file, fp);
+-		_stored_output.Write(fp);
+-		_post_amble_output.Write(fp);
+-		AppendFile(after_file, fp);
+-		fclose(fp);
++		AppendFile(before_file, *fp);
++		_stored_output.Write(*fp);
++		_post_amble_output.Write(*fp);
++		AppendFile(after_file, *fp);
++		fp.reset();
+ 
+ 		std::error_code error_code;
+ 		if (CompareFiles(tmp_output, output_file)) {
+@@ -500,3 +493,16 @@ int CDECL main(int argc, char *argv[])
+ 	}
+ 	return 0;
+ }
++
++/**
++ * Simplified FileHandle::Open which ignores OTTD2FS. Required as settingsgen does not include all of the fileio system.
++ * @param filename UTF-8 encoded filename to open.
++ * @param mode Mode to open file.
++ * @return FileHandle, or std::nullopt on failure.
++ */
++std::optional<FileHandle> FileHandle::Open(const std::string &filename, const std::string &mode)
++{
++	auto f = fopen(filename.c_str(), mode.c_str());
++	if (f == nullptr) return std::nullopt;
++	return FileHandle(f);
++}
+diff --git a/src/signature.cpp b/src/signature.cpp
+index 2b64676e5d7c7..4808f26355ee4 100644
+--- a/src/signature.cpp
++++ b/src/signature.cpp
+@@ -35,22 +35,19 @@ static const std::initializer_list<std::array<uint8_t, 32>> _public_keys_v1 = {
+  */
+ static std::string CalculateHashV1(const std::string &filename)
+ {
+-	FILE *f = FioFOpenFile(filename, "rb", NO_DIRECTORY);
+-	if (f == nullptr) {
+-		return "";
+-	}
++	auto f = FioFOpenFile(filename, "rb", NO_DIRECTORY);
++	if (!f.has_value()) return {};
+ 
+ 	std::array<uint8_t, 32> digest;
+ 	crypto_blake2b_ctx ctx;
+ 	crypto_blake2b_init(&ctx, digest.size());
+ 
+-	while (!feof(f)) {
++	while (!feof(*f)) {
+ 		std::array<uint8_t, 1024> buf;
+-		size_t len = fread(buf.data(), 1, buf.size(), f);
++		size_t len = fread(buf.data(), 1, buf.size(), *f);
+ 
+ 		crypto_blake2b_update(&ctx, buf.data(), len);
+ 	}
+-	fclose(f);
+ 
+ 	crypto_blake2b_final(&ctx, digest.data());
+ 	return FormatArrayAsHex(digest);
+@@ -197,15 +194,14 @@ static bool ValidateSchema(const nlohmann::json &signatures, const std::string &
+ static bool _ValidateSignatureFile(const std::string &filename)
+ {
+ 	size_t filesize;
+-	FILE *f = FioFOpenFile(filename, "rb", NO_DIRECTORY, &filesize);
+-	if (f == nullptr) {
++	auto f = FioFOpenFile(filename, "rb", NO_DIRECTORY, &filesize);
++	if (!f.has_value()) {
+ 		Debug(misc, 0, "Failed to validate signature: file not found: {}", filename);
+ 		return false;
+ 	}
+ 
+ 	std::string text(filesize, '\0');
+-	size_t len = fread(text.data(), filesize, 1, f);
+-	FioFCloseFile(f);
++	size_t len = fread(text.data(), filesize, 1, *f);
+ 	if (len != 1) {
+ 		Debug(misc, 0, "Failed to validate signature: failed to read file: {}", filename);
+ 		return false;
+diff --git a/src/stdafx.h b/src/stdafx.h
+index 8b9ae080c95cb..8d90f7c2d031e 100644
+--- a/src/stdafx.h
++++ b/src/stdafx.h
+@@ -166,19 +166,13 @@
+ #if !defined(STRGEN) && !defined(SETTINGSGEN)
+ #	if defined(_WIN32)
+ 		char *getcwd(char *buf, size_t size);
+-#		include <io.h>
+-#		include <tchar.h>
+-
+-#		define fopen(file, mode) _wfopen(OTTD2FS(file).c_str(), _T(mode))
+ 
+ 		std::string FS2OTTD(const std::wstring &name);
+ 		std::wstring OTTD2FS(const std::string &name);
+ #	elif defined(WITH_ICONV)
+-#		define fopen(file, mode) fopen(OTTD2FS(file).c_str(), mode)
+ 		std::string FS2OTTD(const std::string &name);
+ 		std::string OTTD2FS(const std::string &name);
+ #	else
+-		// no override of fopen() since no transformation is required of the filename
+ 		template <typename T> std::string FS2OTTD(T name) { return name; }
+ 		template <typename T> std::string OTTD2FS(T name) { return name; }
+ #	endif /* _WIN32 or WITH_ICONV */
+diff --git a/src/strings.cpp b/src/strings.cpp
+index e069370e94c37..bce839501e951 100644
+--- a/src/strings.cpp
++++ b/src/strings.cpp
+@@ -2051,11 +2051,10 @@ const LanguageMetadata *GetLanguage(uint8_t newgrflangid)
+  */
+ static bool GetLanguageFileHeader(const std::string &file, LanguagePackHeader *hdr)
+ {
+-	FILE *f = fopen(file.c_str(), "rb");
+-	if (f == nullptr) return false;
++	auto f = FileHandle::Open(file, "rb");
++	if (!f.has_value()) return false;
+ 
+-	size_t read = fread(hdr, sizeof(*hdr), 1, f);
+-	fclose(f);
++	size_t read = fread(hdr, sizeof(*hdr), 1, *f);
+ 
+ 	bool ret = read == 1 && hdr->IsValid();
+ 
+diff --git a/src/textfile_gui.cpp b/src/textfile_gui.cpp
+index 1ae7673715304..72e71accfd6e0 100644
+--- a/src/textfile_gui.cpp
++++ b/src/textfile_gui.cpp
+@@ -742,15 +742,14 @@ static std::vector<char> Xunzip(std::span<char> input)
+ 
+ 	/* Get text from file */
+ 	size_t filesize;
+-	FILE *handle = FioFOpenFile(textfile, "rb", dir, &filesize);
+-	if (handle == nullptr) return;
++	auto handle = FioFOpenFile(textfile, "rb", dir, &filesize);
++	if (!handle.has_value()) return;
+ 	/* Early return on empty files. */
+ 	if (filesize == 0) return;
+ 
+ 	std::vector<char> buf;
+ 	buf.resize(filesize);
+-	size_t read = fread(buf.data(), 1, buf.size(), handle);
+-	fclose(handle);
++	size_t read = fread(buf.data(), 1, buf.size(), *handle);
+ 
+ 	if (read != buf.size()) return;
+ 
+
+From 90551ff0b5cbaebc9bec1d3a81965c8af4de8f05 Mon Sep 17 00:00:00 2001
+From: Peter Nelson <peter1138@openttd.org>
+Date: Sat, 8 Jun 2024 22:08:28 +0100
+Subject: [PATCH 3/3] Codechange: What the heck MSVC?
+
+---
+ src/network/core/packet.cpp | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/network/core/packet.cpp b/src/network/core/packet.cpp
+index 8e95f6c30e95a..87fba8035e97b 100644
+--- a/src/network/core/packet.cpp
++++ b/src/network/core/packet.cpp
+@@ -130,8 +130,8 @@ void Packet::Send_uint8(uint8_t data)
+ void Packet::Send_uint16(uint16_t data)
+ {
+ 	assert(this->CanWriteToPacket(sizeof(data)));
+-	this->buffer.emplace_back(GB(data, 0, 8));
+-	this->buffer.emplace_back(GB(data, 8, 8));
++	this->buffer.emplace_back(static_cast<uint8_t>(GB(data, 0, 8)));
++	this->buffer.emplace_back(static_cast<uint8_t>(GB(data, 8, 8)));
+ }
+ 
+ /**

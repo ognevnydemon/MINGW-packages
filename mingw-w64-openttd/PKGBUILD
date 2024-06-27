@@ -1,0 +1,64 @@
+# Maintainer: Maksim Bondarenkov <maksapple2306@gmail.com>
+
+_realname=openttd
+pkgbase=mingw-w64-${_realname}
+pkgname="${MINGW_PACKAGE_PREFIX}-${_realname}"
+pkgver=14.1
+pkgrel=1
+pkgdesc="Engine for running OpenTTD (mingw-w64)"
+arch=('any')
+mingw_arch=('ucrt64')
+url='https://www.openttd.org'
+msys2_repository_url='https://github.com/OpenTTD/OpenTTD'
+license=('spdx:GPL-2.0-or-later')
+depends=("${MINGW_PACKAGE_PREFIX}-zlib"
+         "${MINGW_PACKAGE_PREFIX}-xz"
+         "${MINGW_PACKAGE_PREFIX}-lzo2"
+         "${MINGW_PACKAGE_PREFIX}-libpng")
+makedepends=("${MINGW_PACKAGE_PREFIX}-cc"
+             "${MINGW_PACKAGE_PREFIX}-cmake"
+             "${MINGW_PACKAGE_PREFIX}-ninja"
+             "${MINGW_PACKAGE_PREFIX}-doxygen")
+source=("https://cdn.openttd.org/openttd-releases/${pkgver}/openttd-${pkgver}-source.tar.xz"
+        "build-docs.patch"
+        "fix-clang-compilation.patch::https://github.com/OpenTTD/OpenTTD/pull/12718.patch")
+sha256sums=('2c14c8f01f44148c4f2c88c169a30abcdb002eb128a92b9adb76baa76b013494'
+            'fd33fd7aa6ea12741b31a65ee89dfe67d5a989d424ac50c8f991819716332050'
+            '052abeb0e13d619bfd8a556b28148466bc2808518fb6d02a41489a80ee739a39')
+
+prepare() {
+  cd "${srcdir}"/${_realname}-${pkgver}
+
+  patch -Np1 -i "${srcdir}/build-docs.patch"
+  if [[ $CC == clang ]]; then
+    # https://github.com/OpenTTD/OpenTTD/issues/12823
+    patch -Np1 -i "${srcdir}/fix-clang-compilation.patch"
+  fi
+}
+
+build() {
+  declare -a extra_config
+  if check_option "debug" "n"; then
+    extra_config+=("-DCMAKE_BUILD_TYPE=Release")
+  else
+    extra_config+=("-DCMAKE_BUILD_TYPE=Debug")
+  fi
+
+  MSYS2_ARG_CONV_EXCL="-DCMAKE_INSTALL_PREFIX=;-DCMAKE_INSTALL_DATADIR=" \
+    "${MINGW_PREFIX}"/bin/cmake.exe \
+      -GNinja \
+      -DCMAKE_INSTALL_PREFIX="${MINGW_PREFIX}" \
+      -DCMAKE_INSTALL_DATADIR="${MINGW_PREFIX}/share" \
+      -DCMAKE_INSTALL_BINDIR=bin \
+      "${extra_config[@]}" \
+      -S "${_realname}-${pkgver}" \
+      -B "build-${MSYSTEM}"
+
+  "${MINGW_PREFIX}"/bin/cmake.exe --build "build-${MSYSTEM}"
+}
+
+package() {
+  DESTDIR="${pkgdir}" "${MINGW_PREFIX}"/bin/cmake.exe --install "build-${MSYSTEM}"
+
+  install -Dm644 "${_realname}-${pkgver}/COPYING.md" "${pkgdir}${MINGW_PREFIX}/share/licenses/${_realname}/COPYING.md"
+}
